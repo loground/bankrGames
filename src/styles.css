@@ -1,0 +1,302 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  color: #0f172a;
+  background: #835dea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #835dea;
+}
+
+canvas {
+  touch-action: manipulation;
+}
+
+.selection-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  background: rgba(15, 23, 42, 0.45);
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+.selection-title {
+  color: #f8fafc;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.game-option {
+  min-width: 260px;
+  padding: 14px 16px;
+  border: 2px solid rgba(248, 250, 252, 0.7);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.game-option:hover {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.crossy-menu {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding-top: 24px;
+  pointer-events: none;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+.crossy-subtitle {
+  font-size: 0.68rem;
+  color: #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.crossy-menu .game-option {
+  pointer-events: auto;
+}
+
+.crossy-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+.crossy-gameover {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(86vw, 420px);
+  padding: 18px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  pointer-events: auto;
+}
+
+.crossy-gameover-title {
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.crossy-gameover-score {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.flappy-back {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 30;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+.flappy-back .game-option {
+  min-width: 120px;
+  font-size: 0.6rem;
+  padding: 10px 12px;
+}
+
+.game-title {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: min(72vw, 430px);
+  pointer-events: none;
+}
+
+.game-title img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+.score {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f8fafc;
+  text-shadow: 0 2px 6px rgba(15, 23, 42, 0.4);
+}
+
+.message {
+  align-self: center;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  font-weight: 600;
+  text-align: center;
+}
+
+.gameover-score {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #f8fafc;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+}
+
+.scene-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.5);
+  pointer-events: none;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+.scene-loader-card {
+  padding: 14px 18px;
+  border: 2px solid rgba(248, 250, 252, 0.72);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.86);
+  color: #f8fafc;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #root,
+  .app {
+    height: 100dvh;
+  }
+
+  .selection-title {
+    font-size: 0.9rem;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .game-option {
+    min-width: min(86vw, 320px);
+    font-size: 0.65rem;
+    padding: 12px 12px;
+  }
+
+  .score {
+    font-size: 0.78rem;
+    line-height: 1.4;
+  }
+
+  .message {
+    max-width: min(92vw, 460px);
+    font-size: 0.58rem;
+    line-height: 1.6;
+    margin-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .crossy-hud,
+  .hud {
+    padding-top: calc(12px + env(safe-area-inset-top));
+    padding-right: calc(12px + env(safe-area-inset-right));
+    padding-left: calc(12px + env(safe-area-inset-left));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .crossy-gameover {
+    width: min(92vw, 420px);
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .crossy-gameover-title,
+  .gameover-score {
+    font-size: 0.8rem;
+  }
+
+  .scene-loader-card {
+    width: min(88vw, 360px);
+    font-size: 0.58rem;
+    line-height: 1.5;
+  }
+
+  .flappy-back {
+    top: calc(10px + env(safe-area-inset-top));
+    right: calc(10px + env(safe-area-inset-right));
+  }
+
+  .flappy-back .game-option {
+    min-width: 96px;
+    font-size: 0.55rem;
+    padding: 9px 10px;
+  }
+
+  .game-title {
+    top: calc(8px + env(safe-area-inset-top));
+    width: min(82vw, 360px);
+  }
+}
