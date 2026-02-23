@@ -161,9 +161,35 @@ canvas {
   padding: 10px 12px;
 }
 
+.main-audio-controls {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
+  z-index: 35;
+  display: flex;
+  gap: 8px;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+.mini-control {
+  min-width: 92px;
+  padding: 8px 10px;
+  border: 2px solid rgba(248, 250, 252, 0.75);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.55rem;
+  cursor: pointer;
+}
+
+.mini-control:hover {
+  background: rgba(30, 41, 59, 0.96);
+}
+
 .game-title {
   position: fixed;
-  top: 10px;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
@@ -314,8 +340,19 @@ canvas {
     padding: 9px 10px;
   }
 
-  .game-title {
+  .main-audio-controls {
     top: calc(8px + env(safe-area-inset-top));
+    left: calc(8px + env(safe-area-inset-left));
+  }
+
+  .mini-control {
+    min-width: 82px;
+    font-size: 0.5rem;
+    padding: 7px 8px;
+  }
+
+  .game-title {
+    top: env(safe-area-inset-top);
     width: min(82vw, 360px);
   }
 }

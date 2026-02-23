@@ -21,6 +21,14 @@ import {
   getCrossySpeedMultiplier,
 } from '../constants/gameConstants';
 
+const CROSSY_LANE_WIDTH = 14;
+const CROSSY_ROAD_WIDTH = 22;
+const CROSSY_TRAFFIC_WRAP_X = 10.5;
+const CROSSY_TRAFFIC_SPACING = 6;
+const CROSSY_CARS_PER_LANE = 2;
+const CROSSY_FOG_COLOR = '#2b1448';
+const CROSSY_BG_COLOR = '#140a24';
+
 function useIsMobileViewport() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
 
@@ -39,11 +47,11 @@ function World() {
   return (
     <>
       <mesh position={[0, FLOOR_Y - 0.15, 0]}>
-        <boxGeometry args={[24, 0.3, 1]} />
+        <boxGeometry args={[36, 0.3, 1]} />
         <meshStandardMaterial color="#4b5563" />
       </mesh>
       <mesh position={[0, -4.6, -0.2]}>
-        <boxGeometry args={[24, 2, 0.5]} />
+        <boxGeometry args={[36, 2, 0.5]} />
         <meshStandardMaterial color="#1f2937" />
       </mesh>
     </>
@@ -58,8 +66,11 @@ export function CrossyMenuScene() {
 
   return (
     <group>
+      <color attach="background" args={[CROSSY_BG_COLOR]} />
+      <fog attach="fog" args={[CROSSY_FOG_COLOR, 8, 18]} />
       <ambientLight intensity={1.1} />
       <directionalLight position={[5, 6, 4]} intensity={1.4} />
+      <pointLight position={[0, CROSSY_GROUND_Y + 1.8, -8]} color="#b06bff" intensity={1.1} distance={30} />
       <World />
       <Bird x={heroX} y={INTRO_BIRD_Y} z={INTRO_BIRD_Z} phase="ready" modelPath="/3d/bankrX_opt.glb" clipOverride={2} />
       <Bird
@@ -152,11 +163,11 @@ function FinishWord() {
 function createCrossyCars() {
   const cars = [];
   CROSSY_LANES.forEach((lane, laneIndex) => {
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < CROSSY_CARS_PER_LANE; i += 1) {
       cars.push({
         id: `${laneIndex}-${i}`,
         laneIndex,
-        x: -6 + i * 4.5 + laneIndex * 0.4,
+        x: -8 + i * CROSSY_TRAFFIC_SPACING + laneIndex * 0.6,
         hit: false,
       });
     }
@@ -314,10 +325,10 @@ export function CrossyGameScene({ mode, setMode, score, setScore, level, onLevel
       const speedMultiplier = getCrossySpeedMultiplier(level);
       let x = car.x + lane.speed * speedMultiplier * lane.direction * delta;
 
-      if (x > 7) {
-        x = -7;
-      } else if (x < -7) {
-        x = 7;
+      if (x > CROSSY_TRAFFIC_WRAP_X) {
+        x = -CROSSY_TRAFFIC_WRAP_X;
+      } else if (x < -CROSSY_TRAFFIC_WRAP_X) {
+        x = CROSSY_TRAFFIC_WRAP_X;
       }
 
       return { ...car, x };
@@ -360,7 +371,7 @@ export function CrossyGameScene({ mode, setMode, score, setScore, level, onLevel
     () =>
       CROSSY_LANES.map((lane) => (
         <mesh key={lane.z} position={[0, CROSSY_GROUND_Y - 0.15, lane.z]}>
-          <boxGeometry args={[10, 0.15, 0.85]} />
+          <boxGeometry args={[CROSSY_LANE_WIDTH, 0.15, 0.85]} />
           <meshStandardMaterial color="#1e293b" />
         </mesh>
       )),
@@ -371,23 +382,23 @@ export function CrossyGameScene({ mode, setMode, score, setScore, level, onLevel
     () => [
       [-3.8, CROSSY_GROUND_Y + 0.3, 2.5],
       [3.8, CROSSY_GROUND_Y + 0.3, 1.5],
-      [-3.8, CROSSY_GROUND_Y + 0.3, -0.5],
       [3.8, CROSSY_GROUND_Y + 0.3, -1.8],
-      [-3.8, CROSSY_GROUND_Y + 0.3, -3.2],
-      [3.8, CROSSY_GROUND_Y + 0.3, -4.7],
-      [-3.8, CROSSY_GROUND_Y + 0.3, -6.2],
     ],
     []
   );
 
   return (
     <group>
+      <color attach="background" args={[CROSSY_BG_COLOR]} />
+      <fog attach="fog" args={[CROSSY_FOG_COLOR, 6.5, 20]} />
       <CrossyCameraRig />
       <ambientLight intensity={1.1} />
       <directionalLight position={[5, 6, 4]} intensity={1.4} />
+      <directionalLight position={[0, CROSSY_GROUND_Y + 3.5, -10]} color="#8f5cff" intensity={0.7} />
+      <pointLight position={[0, CROSSY_GROUND_Y + 2, -10]} color="#b06bff" intensity={1.25} distance={34} />
 
       <mesh position={[0, CROSSY_GROUND_Y - 0.3, -1.5]}>
-        <boxGeometry args={[12, 0.4, 16]} />
+        <boxGeometry args={[CROSSY_ROAD_WIDTH, 0.4, 16]} />
         <meshStandardMaterial color="#475569" />
       </mesh>
 

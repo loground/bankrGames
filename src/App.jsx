@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import SceneLoader from './components/SceneLoader';
 import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
@@ -8,6 +8,8 @@ import MainMenuScene from './scenes/MainMenuScene';
 export default function App() {
   const [selectedGame, setSelectedGame] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
+  const menuMusicRef = useRef(null);
+  const [isMenuMusicPlaying, setIsMenuMusicPlaying] = useState(false);
 
   const [phase, setPhase] = useState('ready');
   const [score, setScore] = useState(0);
@@ -30,6 +32,7 @@ export default function App() {
     () => ({ position: [0, 0, isMobile ? 10 : 8], fov: 44 }),
     [isMobile]
   );
+  const canvasDpr = isMobile ? 1 : 1.25;
 
   const hudMessage = useMemo(() => {
     if (phase === 'ready') {
@@ -57,12 +60,69 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [crossyMode]);
 
+  useEffect(() => {
+    const audio = new Audio('/mainSong.mp3');
+    audio.loop = true;
+    audio.volume = 0.45;
+    menuMusicRef.current = audio;
+
+    return () => {
+      audio.pause();
+      menuMusicRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = menuMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    if (selectedGame === null) {
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(() => setIsMenuMusicPlaying(true)).catch(() => setIsMenuMusicPlaying(false));
+      } else {
+        setIsMenuMusicPlaying(true);
+      }
+      return;
+    }
+
+    audio.pause();
+    setIsMenuMusicPlaying(false);
+  }, [selectedGame]);
+
+  const playMenuMusic = () => {
+    const audio = menuMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise.then(() => setIsMenuMusicPlaying(true)).catch(() => setIsMenuMusicPlaying(false));
+    } else {
+      setIsMenuMusicPlaying(true);
+    }
+  };
+
+  const stopMenuMusic = () => {
+    const audio = menuMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    audio.currentTime = 0;
+    setIsMenuMusicPlaying(false);
+  };
+
   return (
     <div className="app">
       {selectedGame === null && (
         <>
           <Suspense fallback={<SceneLoader title="Loading Main Menu..." />}>
-            <Canvas className="main-menu-canvas" camera={{ position: [0, 0, 7], fov: 42 }}>
+            <Canvas className="main-menu-canvas" camera={{ position: [0, 0, 7], fov: 42 }} dpr={canvasDpr}>
               <color attach="background" args={['#835DEA']} />
               <MainMenuScene isMobile={isMobile} />
             </Canvas>
@@ -87,13 +147,21 @@ export default function App() {
               Crossy X
             </button>
           </div>
+          <div className="main-audio-controls">
+            <button className="mini-control" type="button" onClick={stopMenuMusic}>
+              Stop
+            </button>
+            <button className="mini-control" type="button" onClick={playMenuMusic}>
+              {isMenuMusicPlaying ? 'Playing' : 'Play'}
+            </button>
+          </div>
         </>
       )}
 
       {selectedGame === 'crossy' && (
         <>
           <Suspense fallback={<SceneLoader title="Loading Crossy X..." />}>
-            <Canvas camera={canvasCamera}>
+            <Canvas camera={canvasCamera} dpr={canvasDpr}>
               <color attach="background" args={['#835DEA']} />
               {crossyMode === 'menu' ? (
                 <>
@@ -195,7 +263,7 @@ export default function App() {
           )}
 
           <Suspense fallback={<SceneLoader title="Loading Flappy Bankr..." />}>
-            <Canvas camera={canvasCamera}>
+            <Canvas camera={canvasCamera} dpr={canvasDpr}>
               <color attach="background" args={['#835DEA']} />
               <FlappyCameraRig phase={phase} isMobile={isMobile} />
               <FlappyGameScene phase={phase} setPhase={setPhase} score={score} setScore={setScore} />
