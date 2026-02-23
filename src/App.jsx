@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import SceneLoader from './components/SceneLoader';
 import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
 import { CrossyGameScene, CrossyMenuCamera, CrossyMenuScene } from './scenes/CrossyScene';
+import MainMenuScene from './scenes/MainMenuScene';
 
 export default function App() {
   const [selectedGame, setSelectedGame] = useState(null);
@@ -59,25 +60,34 @@ export default function App() {
   return (
     <div className="app">
       {selectedGame === null && (
-        <div className="selection-screen">
-          <img className="selection-top-image" src="/bgMainPage.png" alt="Main page banner" />
-          <div className="selection-title">Select game</div>
-          <button className="game-option" type="button" onClick={() => setSelectedGame('flappy')}>
-            Flappy Bankr
-          </button>
-          <button
-            className="game-option"
-            type="button"
-            onClick={() => {
-              setCrossyMode('menu');
-              setCrossyScore(0);
-              setCrossyLevel(1);
-              setSelectedGame('crossy');
-            }}
-          >
-            Crossy X
-          </button>
-        </div>
+        <>
+          <Suspense fallback={<SceneLoader title="Loading Main Menu..." />}>
+            <Canvas className="main-menu-canvas" camera={{ position: [0, 0, 7], fov: 42 }}>
+              <color attach="background" args={['#835DEA']} />
+              <MainMenuScene isMobile={isMobile} />
+            </Canvas>
+          </Suspense>
+
+          <div className="selection-screen">
+            <img className="selection-top-image" src="/bgMainPage.png" alt="Main page banner" />
+            <div className="selection-title">Select game</div>
+            <button className="game-option" type="button" onClick={() => setSelectedGame('flappy')}>
+              Flappy Bankr
+            </button>
+            <button
+              className="game-option"
+              type="button"
+              onClick={() => {
+                setCrossyMode('menu');
+                setCrossyScore(0);
+                setCrossyLevel(1);
+                setSelectedGame('crossy');
+              }}
+            >
+              Crossy X
+            </button>
+          </div>
+        </>
       )}
 
       {selectedGame === 'crossy' && (

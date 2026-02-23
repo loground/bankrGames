@@ -26,6 +26,12 @@ body,
   background: #835dea;
 }
 
+.main-menu-canvas {
+  position: absolute !important;
+  inset: 0;
+  z-index: 10;
+}
+
 canvas {
   touch-action: manipulation;
 }
@@ -41,6 +47,7 @@ canvas {
   gap: 14px;
   background: rgba(15, 23, 42, 0.45);
   font-family: 'Press Start 2P', 'Courier New', monospace;
+  pointer-events: none;
 }
 
 .selection-top-image {
@@ -70,6 +77,7 @@ canvas {
   font-family: inherit;
   font-size: 0.74rem;
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .game-option:hover {
