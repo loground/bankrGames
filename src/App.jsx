@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import SceneLoader from './components/SceneLoader';
+import GridHoverBackground from './components/GridHoverBackground';
 import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
 import { CrossyGameScene, CrossyMenuCamera, CrossyMenuScene } from './scenes/CrossyScene';
 import MainMenuScene from './scenes/MainMenuScene';
@@ -121,9 +122,9 @@ export default function App() {
     <div className="app">
       {selectedGame === null && (
         <>
+          <GridHoverBackground />
           <Suspense fallback={<SceneLoader title="Loading Main Menu..." />}>
             <Canvas className="main-menu-canvas" camera={{ position: [0, 0, 7], fov: 42 }} dpr={canvasDpr}>
-              <color attach="background" args={['#835DEA']} />
               <MainMenuScene isMobile={isMobile} />
             </Canvas>
           </Suspense>
