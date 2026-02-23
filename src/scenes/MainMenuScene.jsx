@@ -31,12 +31,12 @@ function ArcadeModel() {
 
     return {
       model: cloned,
-      modelScale: 4.4 / maxDimension,
+      modelScale: 3 / maxDimension,
     };
   }, [gltf.scene]);
 
   return (
-    <group position={[0, -0.5, 0]} rotation={[0, -2, 0]} scale={[modelScale, modelScale, modelScale]}>
+    <group position={[0, -0.55, 0]} rotation={[0, -2, 0]} scale={[modelScale, modelScale, modelScale]}>
       <primitive object={model} />
     </group>
   );
@@ -48,7 +48,7 @@ function MainMenuCameraRig({ isMobile }) {
 
   useEffect(() => {
     camera.position.set(0, 0.05, isMobile ? 7.2 : 6.4);
-    camera.lookAt(0, -0.2, 0);
+    camera.lookAt(0, 0, 0);
 
     const controls = new OrbitControls(camera, gl.domElement);
     controls.enablePan = false;
@@ -59,7 +59,7 @@ function MainMenuCameraRig({ isMobile }) {
     controls.maxAzimuthAngle = 0.9;
     controls.minPolarAngle = 1.1;
     controls.maxPolarAngle = 2.0;
-    controls.target.set(0, -0.2, 0);
+    controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
     return () => {
