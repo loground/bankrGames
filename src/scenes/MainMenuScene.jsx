@@ -5,7 +5,6 @@ import { Box3, Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 function ArcadeModel() {
@@ -114,36 +113,12 @@ function ArcadeTrails() {
 }
 
 function MainMenuCameraRig({ isMobile }) {
-  const { camera, gl } = useThree();
-  const controlsRef = useRef(null);
+  const { camera } = useThree();
 
   useEffect(() => {
     camera.position.set(0, 0.05, isMobile ? 7.2 : 6.4);
     camera.lookAt(0, 0, 0);
-
-    const controls = new OrbitControls(camera, gl.domElement);
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minAzimuthAngle = -0.9;
-    controls.maxAzimuthAngle = 0.9;
-    controls.minPolarAngle = 1.1;
-    controls.maxPolarAngle = 2.0;
-    controls.target.set(0, 0, 0);
-    controlsRef.current = controls;
-
-    return () => {
-      controls.dispose();
-      controlsRef.current = null;
-    };
-  }, [camera, gl.domElement, isMobile]);
-
-  useFrame(() => {
-    if (controlsRef.current) {
-      controlsRef.current.update();
-    }
-  });
+  }, [camera, isMobile]);
 
   return null;
 }

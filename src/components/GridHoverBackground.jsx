@@ -19,21 +19,21 @@ export default function GridHoverBackground() {
     return () => window.removeEventListener('resize', generateGridCount);
   }, [generateGridCount]);
 
-  const handleMouseEnter = (event) => {
-    const id = `#${event.currentTarget.id}`;
+  const handleMouseEnter = (index) => {
+    const id = `#hover-square-${index}`;
     animate(id, { backgroundColor: '#FEDB48' }, { duration: 0.15 });
   };
 
-  const handleMouseLeave = (event) => {
-    const id = `#${event.currentTarget.id}`;
+  const handleMouseLeave = (index) => {
+    const id = `#hover-square-${index}`;
     animate(id, { backgroundColor: 'rgba(254, 219, 72, 0)' }, { duration: 1.2 });
   };
 
   return (
-    <div className="grid-hover-background">
+    <>
       <div
         ref={scope}
-        className="grid-hover-layer"
+        className="grid-hover-visual"
         style={{
           gridTemplateColumns: `repeat(${size.columns}, minmax(${GRID_SIZE}px, 1fr))`,
           gridTemplateRows: `repeat(${size.rows}, minmax(${GRID_SIZE}px, 1fr))`,
@@ -49,6 +49,22 @@ export default function GridHoverBackground() {
           />
         ))}
       </div>
-    </div>
+      <div
+        className="grid-hover-hitbox"
+        style={{
+          gridTemplateColumns: `repeat(${size.columns}, minmax(${GRID_SIZE}px, 1fr))`,
+          gridTemplateRows: `repeat(${size.rows}, minmax(${GRID_SIZE}px, 1fr))`,
+        }}
+      >
+        {Array.from({ length: size.columns * size.rows }).map((_, index) => (
+          <div
+            key={`hit-${index}`}
+            className="grid-hover-hitbox-square"
+            onMouseEnter={() => handleMouseEnter(index)}
+            onMouseLeave={() => handleMouseLeave(index)}
+          />
+        ))}
+      </div>
+    </>
   );
 }

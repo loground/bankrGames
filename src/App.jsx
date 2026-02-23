@@ -124,7 +124,12 @@ export default function App() {
         <>
           <GridHoverBackground />
           <Suspense fallback={<SceneLoader title="Loading Main Menu..." />}>
-            <Canvas className="main-menu-canvas" camera={{ position: [0, 0, 7], fov: 42 }} dpr={canvasDpr}>
+            <Canvas
+              className="main-menu-canvas"
+              camera={{ position: [0, 0, 7], fov: 42 }}
+              dpr={canvasDpr}
+              gl={{ alpha: true, antialias: true }}
+            >
               <MainMenuScene isMobile={isMobile} />
             </Canvas>
           </Suspense>

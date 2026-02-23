@@ -31,20 +31,26 @@ body,
   inset: 0;
   z-index: 20;
   pointer-events: none;
+  background: transparent !important;
 }
 
 canvas {
   touch-action: manipulation;
 }
 
-.grid-hover-background {
+.grid-hover-visual {
   position: absolute;
   inset: 0;
   z-index: 5;
   background: #4f3d93;
+  display: grid;
+  pointer-events: none;
 }
 
-.grid-hover-layer {
+.grid-hover-hitbox {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
   display: grid;
   width: 100%;
   height: 100%;
@@ -55,6 +61,11 @@ canvas {
   height: 100%;
   border: 1px solid #ff572c;
   background: rgba(254, 219, 72, 0);
+}
+
+.grid-hover-hitbox-square {
+  width: 100%;
+  height: 100%;
 }
 
 .selection-screen {
