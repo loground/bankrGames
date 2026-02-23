@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Environment, Trail } from '@react-three/drei';
+import { Environment, Html, Trail, useProgress } from '@react-three/drei';
 import { Box3, Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -123,12 +123,24 @@ function MainMenuCameraRig({ isMobile }) {
   return null;
 }
 
+function ArcadeModelFallback() {
+  const { progress } = useProgress();
+
+  return (
+    <Html center>
+      <div className="model-loader-card">Model Loading: {Math.round(progress)}%</div>
+    </Html>
+  );
+}
+
 export default function MainMenuScene({ isMobile }) {
   return (
     <group>
       <MainMenuCameraRig isMobile={isMobile} />
       <Environment preset="sunset" />
-      <ArcadeModel />
+      <Suspense fallback={<ArcadeModelFallback />}>
+        <ArcadeModel />
+      </Suspense>
     </group>
   );
 }

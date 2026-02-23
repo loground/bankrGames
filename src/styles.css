@@ -304,6 +304,23 @@ canvas {
   text-align: center;
 }
 
+.scene-loader-progress {
+  margin-top: 8px;
+  color: #fedb48;
+}
+
+.model-loader-card {
+  padding: 10px 12px;
+  border: 2px solid rgba(248, 250, 252, 0.72);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #f8fafc;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 @media (max-width: 900px) {
   html,
   body,
@@ -359,6 +376,10 @@ canvas {
     width: min(88vw, 360px);
     font-size: 0.58rem;
     line-height: 1.5;
+  }
+
+  .model-loader-card {
+    font-size: 0.45rem;
   }
 
   .flappy-back {
