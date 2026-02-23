@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import Bird from '../components/Bird';
 import {
   BIRD_RADIUS,
@@ -71,6 +71,19 @@ function World() {
       </mesh>
     </>
   );
+}
+
+export function FlappyCameraRig({ phase, isMobile }) {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    const baseZ = isMobile ? 10 : 8;
+    const playingZ = isMobile ? baseZ * 1.05 : baseZ;
+    camera.position.set(0, 0, phase === 'playing' ? playingZ : baseZ);
+    camera.lookAt(0, 0, 0);
+  }, [camera, isMobile, phase]);
+
+  return null;
 }
 
 export default function FlappyGameScene({ phase, setPhase, score, setScore }) {

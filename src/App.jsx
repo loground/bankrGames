@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import SceneLoader from './components/SceneLoader';
-import FlappyGameScene from './scenes/FlappyScene';
+import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
 import { CrossyGameScene, CrossyMenuCamera, CrossyMenuScene } from './scenes/CrossyScene';
 
 export default function App() {
@@ -187,6 +187,7 @@ export default function App() {
           <Suspense fallback={<SceneLoader title="Loading Flappy Bankr..." />}>
             <Canvas camera={canvasCamera}>
               <color attach="background" args={['#835DEA']} />
+              <FlappyCameraRig phase={phase} isMobile={isMobile} />
               <FlappyGameScene phase={phase} setPhase={setPhase} score={score} setScore={setScore} />
             </Canvas>
           </Suspense>
