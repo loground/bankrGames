@@ -6,6 +6,7 @@ import { CrossyGameScene, CrossyMenuCamera, CrossyMenuScene } from './scenes/Cro
 
 export default function App() {
   const [selectedGame, setSelectedGame] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
 
   const [phase, setPhase] = useState('ready');
   const [score, setScore] = useState(0);
@@ -14,6 +15,20 @@ export default function App() {
   const [crossyScore, setCrossyScore] = useState(0);
   const [crossyLevel, setCrossyLevel] = useState(1);
   const [crossyRunKey, setCrossyRunKey] = useState(0);
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 900);
+    };
+
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const canvasCamera = useMemo(
+    () => ({ position: [0, 0, isMobile ? 10 : 8], fov: 44 }),
+    [isMobile]
+  );
 
   const hudMessage = useMemo(() => {
     if (phase === 'ready') {
@@ -45,6 +60,7 @@ export default function App() {
     <div className="app">
       {selectedGame === null && (
         <div className="selection-screen">
+          <img className="selection-top-image" src="/bgMainPage.png" alt="Main page banner" />
           <div className="selection-title">Select game</div>
           <button className="game-option" type="button" onClick={() => setSelectedGame('flappy')}>
             Flappy Bankr
@@ -67,7 +83,7 @@ export default function App() {
       {selectedGame === 'crossy' && (
         <>
           <Suspense fallback={<SceneLoader title="Loading Crossy X..." />}>
-            <Canvas camera={{ position: [0, 0, 8], fov: 44 }}>
+            <Canvas camera={canvasCamera}>
               <color attach="background" args={['#835DEA']} />
               {crossyMode === 'menu' ? (
                 <>
@@ -169,7 +185,7 @@ export default function App() {
           )}
 
           <Suspense fallback={<SceneLoader title="Loading Flappy Bankr..." />}>
-            <Canvas camera={{ position: [0, 0, 8], fov: 44 }}>
+            <Canvas camera={canvasCamera}>
               <color attach="background" args={['#835DEA']} />
               <FlappyGameScene phase={phase} setPhase={setPhase} score={score} setScore={setScore} />
             </Canvas>

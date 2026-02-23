@@ -43,6 +43,16 @@ canvas {
   font-family: 'Press Start 2P', 'Courier New', monospace;
 }
 
+.selection-top-image {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(72vw, 560px);
+  height: auto;
+  pointer-events: none;
+}
+
 .selection-title {
   color: #f8fafc;
   font-size: 1.1rem;

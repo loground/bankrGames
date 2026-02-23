@@ -21,6 +21,20 @@ import {
   getCrossySpeedMultiplier,
 } from '../constants/gameConstants';
 
+function useIsMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 900);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  return isMobile;
+}
+
 function World() {
   return (
     <>
@@ -37,15 +51,7 @@ function World() {
 }
 
 export function CrossyMenuScene() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
-
-  useEffect(() => {
-    const onResize = () => {
-      setIsMobile(window.innerWidth <= 900);
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  const isMobile = useIsMobileViewport();
 
   const heroX = isMobile ? -0.38 : -1.024;
   const enemyX = isMobile ? 0.38 : 0.98;
@@ -70,11 +76,12 @@ export function CrossyMenuScene() {
 
 export function CrossyMenuCamera() {
   const { camera } = useThree();
+  const isMobile = useIsMobileViewport();
 
   useEffect(() => {
-    camera.position.set(0, 0, 8);
+    camera.position.set(0, 0, isMobile ? 9.2 : 8);
     camera.lookAt(0, 0, 0);
-  }, [camera]);
+  }, [camera, isMobile]);
 
   return null;
 }
@@ -82,9 +89,10 @@ export function CrossyMenuCamera() {
 function CrossyCameraRig() {
   const { camera, gl } = useThree();
   const controlsRef = useRef(null);
+  const isMobile = useIsMobileViewport();
 
   useEffect(() => {
-    camera.position.set(0, CROSSY_GROUND_Y + 5.6, 8.2);
+    camera.position.set(0, CROSSY_GROUND_Y + (isMobile ? 6.3 : 5.6), isMobile ? 10.4 : 8.2);
     camera.lookAt(0, CROSSY_GROUND_Y + 0.6, -2.4);
 
     const controls = new OrbitControls(camera, gl.domElement);
@@ -103,7 +111,7 @@ function CrossyCameraRig() {
       controls.dispose();
       controlsRef.current = null;
     };
-  }, [camera, gl.domElement]);
+  }, [camera, gl.domElement, isMobile]);
 
   useFrame(() => {
     if (controlsRef.current) {
