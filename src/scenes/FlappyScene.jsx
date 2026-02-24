@@ -232,24 +232,35 @@ export function FlappyCameraRig({
   isMobile,
   cameraMode = 'default',
   flightMode = 'normal',
-  povReverseMobileCam = null,
+  povMobileCamSettings = null,
 }) {
   const { camera } = useThree();
   const chasePosRef = useRef(null);
+  const prevViewKeyRef = useRef('');
 
   useEffect(() => {
+    const viewKey = `${cameraMode}:${flightMode}:${phase}:${isMobile}`;
+    if (prevViewKeyRef.current !== viewKey) {
+      chasePosRef.current = null;
+      prevViewKeyRef.current = viewKey;
+    }
+
     const baseZ = isMobile ? 10 : 8;
     const playingZ = isMobile ? baseZ * 1.05 : baseZ;
     const direction = flightMode === 'reverse' ? -1 : 1;
     const birdX = flightMode === 'reverse' ? -BIRD_X : BIRD_X;
 
     if (cameraMode === 'pov' && phase === 'playing') {
-      const useMobileReversePreset = isMobile && flightMode === 'reverse' && povReverseMobileCam;
-      const backOffset = useMobileReversePreset ? povReverseMobileCam.backOffset : isMobile ? 1.25 : 2.4;
-      const lookAhead = useMobileReversePreset ? povReverseMobileCam.lookAhead : isMobile ? 3.4 : 6.0;
+      const modeKey = flightMode === 'reverse' ? 'reverse' : 'normal';
+      const savedMobilePreset = povMobileCamSettings?.[modeKey];
+      const mobilePreset = savedMobilePreset;
+
+      const useMobilePreset = isMobile && mobilePreset;
+      const backOffset = useMobilePreset ? mobilePreset.backOffset : isMobile ? 1.25 : 2.4;
+      const lookAhead = useMobilePreset ? mobilePreset.lookAhead : isMobile ? 3.4 : 6.0;
       const targetX = birdX - direction * backOffset;
-      const targetY = useMobileReversePreset ? povReverseMobileCam.targetY : isMobile ? 1 : 0.95;
-      const targetZ = useMobileReversePreset ? povReverseMobileCam.targetZ : isMobile ? 1.15 : 2.25;
+      const targetY = useMobilePreset ? mobilePreset.targetY : isMobile ? 1 : 0.95;
+      const targetZ = useMobilePreset ? mobilePreset.targetZ : isMobile ? 1.15 : 2.25;
       if (!chasePosRef.current) {
         chasePosRef.current = { x: targetX, y: targetY, z: targetZ };
       }
@@ -261,7 +272,7 @@ export function FlappyCameraRig({
       chasePosRef.current.z += (targetZ - chasePosRef.current.z) * smoothZ;
 
       camera.position.set(chasePosRef.current.x, chasePosRef.current.y, chasePosRef.current.z);
-      camera.fov = useMobileReversePreset ? povReverseMobileCam.fov : isMobile ? 110 : 72;
+      camera.fov = useMobilePreset ? mobilePreset.fov : isMobile ? 110 : 72;
       camera.updateProjectionMatrix();
       camera.lookAt(birdX + direction * lookAhead, isMobile ? 0.2 : 0.24, 0);
       return;
@@ -272,7 +283,7 @@ export function FlappyCameraRig({
     camera.updateProjectionMatrix();
     camera.position.set(0, 0, phase === 'playing' ? playingZ : baseZ);
     camera.lookAt(0, 0, 0);
-  }, [camera, cameraMode, flightMode, isMobile, phase]);
+  }, [camera, cameraMode, flightMode, isMobile, phase, povMobileCamSettings]);
 
   return null;
 }
