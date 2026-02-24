@@ -363,6 +363,14 @@ canvas {
   text-align: center;
 }
 
+.flappy-message {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  margin-bottom: 0;
+}
+
 .gameover-score {
   position: absolute;
   top: 50%;
@@ -455,6 +463,11 @@ canvas {
     font-size: 0.58rem;
     line-height: 1.6;
     margin-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .flappy-message {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    margin-bottom: 0;
   }
 
   .crossy-hud,

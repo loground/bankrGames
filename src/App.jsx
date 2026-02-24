@@ -528,7 +528,7 @@ export default function App() {
 
           <div className="hud">
             {phase === 'playing' && <div className="flappy-score">Score: {score}</div>}
-            <div className="message">{hudMessage}</div>
+            <div className="message flappy-message">{hudMessage}</div>
             {phase === 'gameover' && <div className="gameover-score">Score: {score}</div>}
           </div>
         </>
