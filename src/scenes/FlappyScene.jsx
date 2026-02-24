@@ -28,6 +28,7 @@ import {
 const SPECIAL_EFFECT_TYPES = ['pov', 'reverse', 'normal'];
 const SPECIAL_SPAWN_MIN_PIPES = 12;
 const SPECIAL_SPAWN_MAX_PIPES = 16;
+const MODE_SWITCH_SAFE_SECONDS = 0.7;
 
 function PipePair({ x, gapY }) {
   const gapTop = gapY + PIPE_GAP / 2;
@@ -134,7 +135,11 @@ function PovBillions({ flightMode }) {
   const birdX = flightMode === 'reverse' ? -BIRD_X : BIRD_X;
 
   return (
-    <mesh position={[birdX + direction * 9.4, 1.8, 0]} rotation={[0, direction === -1 ? Math.PI : 0, 0]} geometry={geometry}>
+    <mesh
+      position={[birdX + direction * 9.4, 1.2, 0]}
+      rotation={[0, direction === 1 ? -Math.PI / 2 : Math.PI / 2, 0]}
+      geometry={geometry}
+    >
       <meshStandardMaterial color="#f97316" metalness={0.35} roughness={0.4} emissive="#ea580c" emissiveIntensity={0.25} />
     </mesh>
   );
@@ -283,6 +288,7 @@ export default function FlappyGameScene({
   const effectIdRef = useRef(0);
   const specialSpawnCountdownRef = useRef(SPECIAL_SPAWN_MIN_PIPES);
   const lastEffectTypeRef = useRef(null);
+  const modeSwitchSafeRef = useRef(0);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -324,12 +330,14 @@ export default function FlappyGameScene({
       if (effectType === 'reverse') {
         const nextMode = flightModeRef.current === 'reverse' ? 'normal' : 'reverse';
         flightModeRef.current = nextMode;
+        modeSwitchSafeRef.current = MODE_SWITCH_SAFE_SECONDS;
         setFlightMode(nextMode);
         return;
       }
 
       if (flightModeRef.current !== 'normal') {
         flightModeRef.current = 'normal';
+        modeSwitchSafeRef.current = MODE_SWITCH_SAFE_SECONDS;
         setFlightMode('normal');
       }
       if (cameraModeRef.current !== 'default') {
@@ -356,6 +364,7 @@ export default function FlappyGameScene({
     specialSpawnCountdownRef.current = randomSpecialCountdown();
     flightModeRef.current = 'normal';
     cameraModeRef.current = 'default';
+    modeSwitchSafeRef.current = 0;
 
     setBirdY(INTRO_BIRD_Y);
     setBirdX(INTRO_BIRD_X);
@@ -425,6 +434,9 @@ export default function FlappyGameScene({
     const targetBirdX = isReverse ? -BIRD_X : BIRD_X;
     const pipeSpawnX = isReverse ? -PIPE_START_X : PIPE_START_X;
     const pipeDespawnX = isReverse ? -PIPE_DESPAWN_X : PIPE_DESPAWN_X;
+    if (modeSwitchSafeRef.current > 0) {
+      modeSwitchSafeRef.current = Math.max(0, modeSwitchSafeRef.current - dt);
+    }
 
     if (phaseRef.current === 'starting') {
       startProgressRef.current = Math.min(startProgressRef.current + dt / STARTING_DURATION, 1);
@@ -463,8 +475,9 @@ export default function FlappyGameScene({
 
     velocityRef.current = vy;
     birdYRef.current = y;
-    birdXRef.current = targetBirdX;
+    birdXRef.current += (targetBirdX - birdXRef.current) * Math.min(1, dt * 8);
     birdZRef.current = 0;
+    const currentBirdX = birdXRef.current;
 
     if (y - BIRD_RADIUS <= FLOOR_Y || y + BIRD_RADIUS >= WORLD_TOP) {
       setBirdY(y);
@@ -507,16 +520,16 @@ export default function FlappyGameScene({
         const gapTop = pipe.gapY + PIPE_GAP / 2;
         const gapBottom = pipe.gapY - PIPE_GAP / 2;
 
-        const overlapsPipeX = Math.abs(movedX - targetBirdX) <= PIPE_WIDTH / 2 + BIRD_RADIUS;
+        const overlapsPipeX = Math.abs(movedX - currentBirdX) <= PIPE_WIDTH / 2 + BIRD_RADIUS;
         const hitsGap = y + BIRD_RADIUS < gapTop && y - BIRD_RADIUS > gapBottom;
 
-        if (overlapsPipeX && !hitsGap) {
+        if (modeSwitchSafeRef.current <= 0 && overlapsPipeX && !hitsGap) {
           crash();
         }
 
         let passed = pipe.passed;
-        const passedNormal = movedX + PIPE_WIDTH / 2 < targetBirdX;
-        const passedReverse = movedX - PIPE_WIDTH / 2 > targetBirdX;
+        const passedNormal = movedX + PIPE_WIDTH / 2 < currentBirdX;
+        const passedReverse = movedX - PIPE_WIDTH / 2 > currentBirdX;
         if (!passed && ((direction === 1 && passedNormal) || (direction === -1 && passedReverse))) {
           passed = true;
           nextScore += 1;
@@ -531,7 +544,7 @@ export default function FlappyGameScene({
     for (let i = 0; i < effectsRef.current.length; i += 1) {
       const item = effectsRef.current[i];
       const movedX = item.x - pipeSpeed * dt * direction;
-      const closeX = Math.abs(movedX - targetBirdX) < 0.56;
+      const closeX = Math.abs(movedX - currentBirdX) < 0.56;
       const closeY = Math.abs(item.y - y) < 0.56;
 
       if (closeX && closeY) {
@@ -553,7 +566,7 @@ export default function FlappyGameScene({
 
     pipesRef.current = nextPipes;
     effectsRef.current = nextEffects;
-    setBirdX(targetBirdX);
+    setBirdX(currentBirdX);
     setBirdY(y);
     setPipes(nextPipes);
     setEffects(nextEffects);
