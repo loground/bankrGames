@@ -11,7 +11,8 @@ export const PIPE_SPEED = 2.2;
 export const PIPE_WIDTH = 1.2;
 export const PIPE_GAP = 3;
 export const PIPE_SPAWN_SECONDS = 1.65;
-export const PIPE_START_X = 6;
+export const PIPE_START_X = 9;
+export const PIPE_DESPAWN_X = -10;
 
 export const WORLD_TOP = 4.2;
 export const FLOOR_Y = -3.35;

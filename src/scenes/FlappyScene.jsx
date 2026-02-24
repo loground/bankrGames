@@ -11,6 +11,7 @@ import {
   INTRO_BIRD_Y,
   INTRO_BIRD_Z,
   PIPE_GAP,
+  PIPE_DESPAWN_X,
   PIPE_SPAWN_SECONDS,
   PIPE_WIDTH,
   STARTING_DURATION,
@@ -120,6 +121,7 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
     spawnTimerRef.current = 0;
     scoreRef.current = 0;
     startProgressRef.current = 0;
+    pipeIdRef.current = 0;
 
     setBirdY(INTRO_BIRD_Y);
     setBirdX(INTRO_BIRD_X);
@@ -143,6 +145,10 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
     if (phaseRef.current === 'ready') {
       startProgressRef.current = 0;
       setPhase('starting');
+      return;
+    }
+
+    if (phaseRef.current === 'starting') {
       return;
     }
 
@@ -176,8 +182,10 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
   }, [onAction]);
 
   useFrame((_, delta) => {
+    const dt = Math.min(delta, 1 / 30);
+
     if (phaseRef.current === 'starting') {
-      startProgressRef.current = Math.min(startProgressRef.current + delta / STARTING_DURATION, 1);
+      startProgressRef.current = Math.min(startProgressRef.current + dt / STARTING_DURATION, 1);
 
       const t = startProgressRef.current;
       const nextX = INTRO_BIRD_X + (BIRD_X - INTRO_BIRD_X) * t;
@@ -194,6 +202,10 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
 
       if (t >= 1) {
         velocityRef.current = 0;
+        birdXRef.current = BIRD_X;
+        birdZRef.current = 0;
+        setBirdX(BIRD_X);
+        setBirdZ(0);
         setPhase('playing');
       }
 
@@ -204,8 +216,8 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
       return;
     }
 
-    const vy = velocityRef.current + GRAVITY * delta;
-    const y = birdYRef.current + vy * delta;
+    const vy = velocityRef.current + GRAVITY * dt;
+    const y = birdYRef.current + vy * dt;
 
     velocityRef.current = vy;
     birdYRef.current = y;
@@ -218,7 +230,7 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
       return;
     }
 
-    spawnTimerRef.current += delta;
+    spawnTimerRef.current += dt;
 
     if (spawnTimerRef.current >= PIPE_SPAWN_SECONDS) {
       spawnTimerRef.current = 0;
@@ -228,9 +240,10 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
     let nextScore = scoreRef.current;
     const pipeSpeed = getPipeSpeedForScore(scoreRef.current);
 
-    const nextPipes = pipesRef.current
-      .map((pipe) => {
-        const movedX = pipe.x - pipeSpeed * delta;
+    const nextPipes = [];
+    for (let i = 0; i < pipesRef.current.length; i += 1) {
+      const pipe = pipesRef.current[i];
+      const movedX = pipe.x - pipeSpeed * dt;
         const gapTop = pipe.gapY + PIPE_GAP / 2;
         const gapBottom = pipe.gapY - PIPE_GAP / 2;
 
@@ -247,9 +260,10 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
           nextScore += 1;
         }
 
-        return { ...pipe, x: movedX, passed };
-      })
-      .filter((pipe) => pipe.x > -8);
+      if (movedX > PIPE_DESPAWN_X) {
+        nextPipes.push({ ...pipe, x: movedX, passed });
+      }
+    }
 
     if (nextScore !== scoreRef.current) {
       scoreRef.current = nextScore;
@@ -257,9 +271,7 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
     }
 
     pipesRef.current = nextPipes;
-    setBirdX(BIRD_X);
     setBirdY(y);
-    setBirdZ(0);
     setPipes(nextPipes);
   });
 
