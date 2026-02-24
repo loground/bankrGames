@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Trail } from '@react-three/drei';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+import helvetikerFont from 'three/examples/fonts/helvetiker_bold.typeface.json';
 import Bird from '../components/Bird';
 import {
   BIRD_RADIUS,
@@ -107,14 +110,41 @@ function EffectMarker({ x, y, effect }) {
   );
 }
 
+function PovBillions({ flightMode }) {
+  const geometry = useMemo(() => {
+    const font = new FontLoader().parse(helvetikerFont);
+    const textGeometry = new TextGeometry('BILLIONS', {
+      font,
+      size: 0.7,
+      depth: 0.22,
+      curveSegments: 8,
+      bevelEnabled: false,
+    });
+    textGeometry.computeBoundingBox();
+    if (textGeometry.boundingBox) {
+      const width = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+      textGeometry.translate(-width / 2, 0, 0);
+    }
+    return textGeometry;
+  }, []);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  const direction = flightMode === 'reverse' ? -1 : 1;
+  const birdX = flightMode === 'reverse' ? -BIRD_X : BIRD_X;
+
+  return (
+    <mesh position={[birdX + direction * 9.4, 1.8, 0]} rotation={[0, direction === -1 ? Math.PI : 0, 0]} geometry={geometry}>
+      <meshStandardMaterial color="#f97316" metalness={0.35} roughness={0.4} emissive="#ea580c" emissiveIntensity={0.25} />
+    </mesh>
+  );
+}
+
 function SpeedTrails({ birdXRef, birdYRef, birdZRef, velocityRef, phaseRef, flightModeRef }) {
   const headARef = useRef(null);
   const headBRef = useRef(null);
   const headCRef = useRef(null);
   const headDRef = useRef(null);
-  const headERef = useRef(null);
-  const headFRef = useRef(null);
-  const headGRef = useRef(null);
   const anchorYRef = useRef(null);
   const anchorZRef = useRef(null);
 
@@ -124,32 +154,25 @@ function SpeedTrails({ birdXRef, birdYRef, birdZRef, velocityRef, phaseRef, flig
     const speed = Math.abs(velocityRef.current);
     const power = moving ? Math.min(1.35, speed / 4.6 + (phaseRef.current === 'starting' ? 0.18 : 0)) : 0;
 
-    const baseX = birdXRef.current - direction * (0.3 + power * 0.2);
+    const baseX = birdXRef.current - direction * (0.22 + power * 0.2);
     if (anchorYRef.current === null) {
-      anchorYRef.current = birdYRef.current + 0.08;
+      anchorYRef.current = birdYRef.current - 0.28;
     }
     if (anchorZRef.current === null) {
       anchorZRef.current = birdZRef.current;
     }
-    const yFollow = velocityRef.current < -0.35 ? 0.22 : 0.12;
-    anchorYRef.current += (birdYRef.current + 0.08 - anchorYRef.current) * yFollow;
-    anchorZRef.current += (birdZRef.current - anchorZRef.current) * 0.14;
+    const yFollow = velocityRef.current < -0.35 ? 0.2 : 0.14;
+    anchorYRef.current += (birdYRef.current - 0.28 - anchorYRef.current) * yFollow;
+    anchorZRef.current += (birdZRef.current - anchorZRef.current) * 0.18;
     const baseY = anchorYRef.current;
     const baseZ = anchorZRef.current;
     const t = state.clock.elapsedTime;
     const active = power > 0.06;
 
-    const heads = [
-      headARef.current,
-      headBRef.current,
-      headCRef.current,
-      headDRef.current,
-      headERef.current,
-      headFRef.current,
-      headGRef.current,
-    ];
-    const yOffsets = [0, 0.03, -0.03, 0.05, -0.05, 0.015, -0.015];
-    const zOffsets = [0, 0.02, -0.02, -0.03, 0.03, 0.04, -0.04];
+    const heads = [headARef.current, headBRef.current, headCRef.current, headDRef.current];
+    // Keep trails attached around the leg area with tight vertical spread.
+    const yOffsets = [0.02, -0.02, 0.02, -0.02];
+    const zOffsets = [0.11, 0.11, -0.11, -0.11];
 
     for (let i = 0; i < heads.length; i += 1) {
       const head = heads[i];
@@ -157,43 +180,34 @@ function SpeedTrails({ birdXRef, birdYRef, birdZRef, velocityRef, phaseRef, flig
         continue;
       }
 
-      const jitterY = Math.sin(t * (11 + i * 1.2) + i) * (0.0015 + power * 0.004);
-      const jitterZ = Math.cos(t * (9 + i * 1.1) + i * 0.7) * (0.002 + power * 0.006);
-      const drag = i * (0.075 + power * 0.095);
-      const xPulse = Math.sin(t * (26 + i * 2.3) + i * 0.4) * (0.03 + power * 0.15);
+      const jitterY = Math.sin(t * (7 + i * 0.6) + i) * (0.0008 + power * 0.0015);
+      const jitterZ = Math.cos(t * (6 + i * 0.5) + i * 0.4) * (0.0012 + power * 0.002);
+      const drag = i * (0.1 + power * 0.14);
+      const xPulse = Math.sin(t * (16 + i * 1.4) + i * 0.3) * (0.02 + power * 0.08);
 
       head.position.set(
         baseX - direction * (drag + xPulse),
-        baseY + yOffsets[i] * (1 + power * 0.08) + jitterY,
+        baseY + yOffsets[i] + jitterY,
         baseZ + zOffsets[i] + jitterZ
       );
-      head.scale.setScalar(0.44 + power * 0.82);
+      head.scale.setScalar(0.4 + power * 0.58);
       head.visible = active;
     }
   });
 
   return (
     <>
-      <Trail width={1.3} length={3.7} color="#93c5fd" attenuation={(value) => value * value}>
+      <Trail width={0.9} length={3.1} color="#f97316" attenuation={(value) => value * value}>
         <group ref={headARef} />
       </Trail>
-      <Trail width={1.08} length={3.5} color="#67e8f9" attenuation={(value) => value * value}>
+      <Trail width={0.9} length={3.1} color="#f97316" attenuation={(value) => value * value}>
         <group ref={headBRef} />
       </Trail>
-      <Trail width={1.08} length={3.5} color="#67e8f9" attenuation={(value) => value * value}>
+      <Trail width={0.84} length={2.8} color="#f97316" attenuation={(value) => value * value}>
         <group ref={headCRef} />
       </Trail>
-      <Trail width={0.98} length={3.2} color="#c4b5fd" attenuation={(value) => value * value}>
+      <Trail width={0.84} length={2.8} color="#f97316" attenuation={(value) => value * value}>
         <group ref={headDRef} />
-      </Trail>
-      <Trail width={0.98} length={3.2} color="#c4b5fd" attenuation={(value) => value * value}>
-        <group ref={headERef} />
-      </Trail>
-      <Trail width={0.86} length={2.8} color="#f0abfc" attenuation={(value) => value * value}>
-        <group ref={headFRef} />
-      </Trail>
-      <Trail width={0.86} length={2.8} color="#f0abfc" attenuation={(value) => value * value}>
-        <group ref={headGRef} />
       </Trail>
     </>
   );
@@ -210,22 +224,26 @@ export function FlappyCameraRig({ phase, isMobile, cameraMode = 'default', fligh
     const birdX = flightMode === 'reverse' ? -BIRD_X : BIRD_X;
 
     if (cameraMode === 'pov' && phase === 'playing') {
-      const targetX = birdX - direction * 3.7;
-      const targetY = 2;
-      const targetZ = 1.5;
+      const targetX = birdX - direction * 2.4;
+      const targetY = 0.95;
+      const targetZ = 2.25;
       if (!chasePosRef.current) {
         chasePosRef.current = { x: targetX, y: targetY, z: targetZ };
       }
-      chasePosRef.current.x += (targetX - chasePosRef.current.x) * 0.18;
-      chasePosRef.current.y += (targetY - chasePosRef.current.y) * 0.12;
-      chasePosRef.current.z += (targetZ - chasePosRef.current.z) * 0.14;
+      chasePosRef.current.x += (targetX - chasePosRef.current.x) * 0.22;
+      chasePosRef.current.y += (targetY - chasePosRef.current.y) * 0.16;
+      chasePosRef.current.z += (targetZ - chasePosRef.current.z) * 0.18;
 
       camera.position.set(chasePosRef.current.x, chasePosRef.current.y, chasePosRef.current.z);
-      camera.lookAt(birdX + direction * 2.8, 0.18, 0);
+      camera.fov = isMobile ? 78 : 72;
+      camera.updateProjectionMatrix();
+      camera.lookAt(birdX + direction * 6, 0.24, 0);
       return;
     }
 
     chasePosRef.current = null;
+    camera.fov = 44;
+    camera.updateProjectionMatrix();
     camera.position.set(0, 0, phase === 'playing' ? playingZ : baseZ);
     camera.lookAt(0, 0, 0);
   }, [camera, cameraMode, flightMode, isMobile, phase]);
@@ -297,18 +315,16 @@ export default function FlappyGameScene({
   const applyEffect = useCallback(
     (effectType) => {
       if (effectType === 'pov') {
-        if (cameraModeRef.current !== 'pov') {
-          cameraModeRef.current = 'pov';
-          setCameraMode('pov');
-        }
+        const nextMode = cameraModeRef.current === 'pov' ? 'default' : 'pov';
+        cameraModeRef.current = nextMode;
+        setCameraMode(nextMode);
         return;
       }
 
       if (effectType === 'reverse') {
-        if (flightModeRef.current !== 'reverse') {
-          flightModeRef.current = 'reverse';
-          setFlightMode('reverse');
-        }
+        const nextMode = flightModeRef.current === 'reverse' ? 'normal' : 'reverse';
+        flightModeRef.current = nextMode;
+        setFlightMode(nextMode);
         return;
       }
 
@@ -559,6 +575,7 @@ export default function FlappyGameScene({
       <World />
       {renderedPipes}
       {renderedEffects}
+      {cameraMode === 'pov' && phase === 'playing' && <PovBillions flightMode={flightMode} />}
       {phase === 'playing' && (
         <SpeedTrails
           birdXRef={birdXRef}
