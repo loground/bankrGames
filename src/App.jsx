@@ -10,7 +10,9 @@ export default function App() {
   const [selectedGame, setSelectedGame] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
   const menuMusicRef = useRef(null);
+  const flappyMusicRef = useRef(null);
   const [isMenuMusicPlaying, setIsMenuMusicPlaying] = useState(false);
+  const [isFlappyMusicPlaying, setIsFlappyMusicPlaying] = useState(false);
 
   const [phase, setPhase] = useState('ready');
   const [score, setScore] = useState(0);
@@ -80,6 +82,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const audio = new Audio('/flappySong.mp3');
+    audio.loop = true;
+    audio.volume = 0.45;
+    flappyMusicRef.current = audio;
+
+    return () => {
+      audio.pause();
+      flappyMusicRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const audio = menuMusicRef.current;
     if (!audio) {
       return;
@@ -97,6 +111,26 @@ export default function App() {
 
     audio.pause();
     setIsMenuMusicPlaying(false);
+  }, [selectedGame]);
+
+  useEffect(() => {
+    const audio = flappyMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    if (selectedGame === 'flappy') {
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(() => setIsFlappyMusicPlaying(true)).catch(() => setIsFlappyMusicPlaying(false));
+      } else {
+        setIsFlappyMusicPlaying(true);
+      }
+      return;
+    }
+
+    audio.pause();
+    setIsFlappyMusicPlaying(false);
   }, [selectedGame]);
 
   const playMenuMusic = () => {
@@ -122,6 +156,31 @@ export default function App() {
     audio.pause();
     audio.currentTime = 0;
     setIsMenuMusicPlaying(false);
+  };
+
+  const playFlappyMusic = () => {
+    const audio = flappyMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise.then(() => setIsFlappyMusicPlaying(true)).catch(() => setIsFlappyMusicPlaying(false));
+    } else {
+      setIsFlappyMusicPlaying(true);
+    }
+  };
+
+  const stopFlappyMusic = () => {
+    const audio = flappyMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    audio.currentTime = 0;
+    setIsFlappyMusicPlaying(false);
   };
 
   return (
@@ -262,6 +321,15 @@ export default function App() {
 
       {selectedGame === 'flappy' && (
         <>
+          <div className="flappy-audio-controls" onPointerDown={(event) => event.stopPropagation()}>
+            <button className="mini-control" type="button" onClick={stopFlappyMusic}>
+              Stop
+            </button>
+            <button className="mini-control" type="button" onClick={playFlappyMusic}>
+              {isFlappyMusicPlaying ? 'Playing' : 'Play'}
+            </button>
+          </div>
+
           <div className="flappy-back">
             <button
               className="game-option"
@@ -459,7 +527,7 @@ export default function App() {
           </Suspense>
 
           <div className="hud">
-            {phase !== 'gameover' && <div className="score">Score: {score}</div>}
+            {phase === 'playing' && <div className="flappy-score">Score: {score}</div>}
             <div className="message">{hudMessage}</div>
             {phase === 'gameover' && <div className="gameover-score">Score: {score}</div>}
           </div>
