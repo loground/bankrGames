@@ -193,6 +193,74 @@ canvas {
   padding: 10px 12px;
 }
 
+.flappy-mode-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 2px solid rgba(248, 250, 252, 0.72);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.82);
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  pointer-events: auto;
+}
+
+.flappy-mode-title {
+  color: #f8fafc;
+  font-size: 0.5rem;
+}
+
+.flappy-mode-row {
+  display: flex;
+  gap: 8px;
+}
+
+.flappy-mode-panel .mini-control {
+  min-width: 128px;
+  font-size: 0.48rem;
+}
+
+.flappy-tune-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(248, 250, 252, 0.22);
+}
+
+.flappy-tune-row {
+  display: grid;
+  grid-template-columns: 44px 34px 1fr 34px;
+  align-items: center;
+  gap: 6px;
+}
+
+.flappy-tune-label {
+  color: #f8fafc;
+  font-size: 0.42rem;
+}
+
+.flappy-tune-value {
+  color: #fedb48;
+  text-align: center;
+  font-size: 0.42rem;
+}
+
+.flappy-tune-row .mini-control {
+  min-width: 34px;
+  padding: 6px 0;
+  font-size: 0.5rem;
+}
+
+.mini-control-active {
+  border-color: #fedb48;
+  background: rgba(249, 115, 22, 0.22);
+}
+
 .main-audio-controls {
   position: absolute;
   top: calc(12px + env(safe-area-inset-top));
@@ -391,6 +459,43 @@ canvas {
     min-width: 96px;
     font-size: 0.55rem;
     padding: 9px 10px;
+  }
+
+  .flappy-mode-panel {
+    top: calc(8px + env(safe-area-inset-top));
+    left: calc(8px + env(safe-area-inset-left));
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .flappy-mode-title {
+    font-size: 0.44rem;
+  }
+
+  .flappy-mode-row {
+    gap: 6px;
+  }
+
+  .flappy-mode-panel .mini-control {
+    min-width: 102px;
+    font-size: 0.42rem;
+    padding: 7px 8px;
+  }
+
+  .flappy-tune-row {
+    grid-template-columns: 38px 30px 1fr 30px;
+    gap: 5px;
+  }
+
+  .flappy-tune-label,
+  .flappy-tune-value {
+    font-size: 0.38rem;
+  }
+
+  .flappy-tune-row .mini-control {
+    min-width: 30px;
+    padding: 5px 0;
+    font-size: 0.46rem;
   }
 
   .main-audio-controls {

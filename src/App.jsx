@@ -16,6 +16,13 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [flappyCameraMode, setFlappyCameraMode] = useState('default');
   const [flappyFlightMode, setFlappyFlightMode] = useState('normal');
+  const [flappyPovReverseMobileCam, setFlappyPovReverseMobileCam] = useState({
+    backOffset: 1.25,
+    lookAhead: 3.4,
+    targetY: 0.76,
+    targetZ: 1.15,
+    fov: 84,
+  });
 
   const [crossyMode, setCrossyMode] = useState('menu');
   const [crossyScore, setCrossyScore] = useState(0);
@@ -280,6 +287,157 @@ export default function App() {
             </div>
           )}
 
+          <div className="flappy-mode-panel" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="flappy-mode-title">Flappy Modes</div>
+            <div className="flappy-mode-row">
+              <button
+                className={`mini-control ${flappyCameraMode === 'default' ? 'mini-control-active' : ''}`}
+                type="button"
+                onClick={() => setFlappyCameraMode('default')}
+              >
+                Cam: Default
+              </button>
+              <button
+                className={`mini-control ${flappyCameraMode === 'pov' ? 'mini-control-active' : ''}`}
+                type="button"
+                onClick={() => setFlappyCameraMode('pov')}
+              >
+                Cam: POV
+              </button>
+            </div>
+            <div className="flappy-mode-row">
+              <button
+                className={`mini-control ${flappyFlightMode === 'normal' ? 'mini-control-active' : ''}`}
+                type="button"
+                onClick={() => setFlappyFlightMode('normal')}
+              >
+                Dir: Normal
+              </button>
+              <button
+                className={`mini-control ${flappyFlightMode === 'reverse' ? 'mini-control-active' : ''}`}
+                type="button"
+                onClick={() => setFlappyFlightMode('reverse')}
+              >
+                Dir: Reverse
+              </button>
+            </div>
+            {flappyCameraMode === 'pov' && flappyFlightMode === 'reverse' && (
+              <div className="flappy-tune-group">
+                <div className="flappy-mode-title">POV+Reverse Camera</div>
+                <div className="flappy-tune-row">
+                  <span className="flappy-tune-label">Back</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, backOffset: Math.max(0.3, v.backOffset - 0.1) }))
+                    }
+                  >
+                    -
+                  </button>
+                  <span className="flappy-tune-value">{flappyPovReverseMobileCam.backOffset.toFixed(2)}</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, backOffset: Math.min(4, v.backOffset + 0.1) }))
+                    }
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flappy-tune-row">
+                  <span className="flappy-tune-label">Ahead</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, lookAhead: Math.max(1, v.lookAhead - 0.1) }))
+                    }
+                  >
+                    -
+                  </button>
+                  <span className="flappy-tune-value">{flappyPovReverseMobileCam.lookAhead.toFixed(2)}</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, lookAhead: Math.min(8, v.lookAhead + 0.1) }))
+                    }
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flappy-tune-row">
+                  <span className="flappy-tune-label">Y</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, targetY: Math.max(-1, v.targetY - 0.05) }))
+                    }
+                  >
+                    -
+                  </button>
+                  <span className="flappy-tune-value">{flappyPovReverseMobileCam.targetY.toFixed(2)}</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, targetY: Math.min(3, v.targetY + 0.05) }))
+                    }
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flappy-tune-row">
+                  <span className="flappy-tune-label">Z</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, targetZ: Math.max(0.1, v.targetZ - 0.05) }))
+                    }
+                  >
+                    -
+                  </button>
+                  <span className="flappy-tune-value">{flappyPovReverseMobileCam.targetZ.toFixed(2)}</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, targetZ: Math.min(6, v.targetZ + 0.05) }))
+                    }
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flappy-tune-row">
+                  <span className="flappy-tune-label">FOV</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, fov: Math.max(45, v.fov - 1) }))
+                    }
+                  >
+                    -
+                  </button>
+                  <span className="flappy-tune-value">{flappyPovReverseMobileCam.fov}</span>
+                  <button
+                    className="mini-control"
+                    type="button"
+                    onClick={() =>
+                      setFlappyPovReverseMobileCam((v) => ({ ...v, fov: Math.min(120, v.fov + 1) }))
+                    }
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <Suspense fallback={<SceneLoader title="Loading Flappy Bankr..." />}>
             <Canvas camera={canvasCamera} dpr={canvasDpr}>
               <color attach="background" args={['#835DEA']} />
@@ -288,6 +446,7 @@ export default function App() {
                 isMobile={isMobile}
                 cameraMode={flappyCameraMode}
                 flightMode={flappyFlightMode}
+                povReverseMobileCam={flappyPovReverseMobileCam}
               />
               <FlappyGameScene
                 phase={phase}
