@@ -14,6 +14,8 @@ export default function App() {
 
   const [phase, setPhase] = useState('ready');
   const [score, setScore] = useState(0);
+  const [flappyCameraMode, setFlappyCameraMode] = useState('default');
+  const [flappyFlightMode, setFlappyFlightMode] = useState('normal');
 
   const [crossyMode, setCrossyMode] = useState('menu');
   const [crossyScore, setCrossyScore] = useState(0);
@@ -137,7 +139,15 @@ export default function App() {
           <div className="selection-screen">
             <img className="selection-top-image" src="/bgMainPage.png" alt="Main page banner" />
             <div className="selection-title">Select game</div>
-            <button className="game-option" type="button" onClick={() => setSelectedGame('flappy')}>
+            <button
+              className="game-option"
+              type="button"
+              onClick={() => {
+                setFlappyCameraMode('default');
+                setFlappyFlightMode('normal');
+                setSelectedGame('flappy');
+              }}
+            >
               Flappy Bankr
             </button>
             <button
@@ -256,6 +266,8 @@ export default function App() {
                 setSelectedGame(null);
                 setPhase('ready');
                 setScore(0);
+                setFlappyCameraMode('default');
+                setFlappyFlightMode('normal');
               }}
             >
               Back
@@ -271,8 +283,22 @@ export default function App() {
           <Suspense fallback={<SceneLoader title="Loading Flappy Bankr..." />}>
             <Canvas camera={canvasCamera} dpr={canvasDpr}>
               <color attach="background" args={['#835DEA']} />
-              <FlappyCameraRig phase={phase} isMobile={isMobile} />
-              <FlappyGameScene phase={phase} setPhase={setPhase} score={score} setScore={setScore} />
+              <FlappyCameraRig
+                phase={phase}
+                isMobile={isMobile}
+                cameraMode={flappyCameraMode}
+                flightMode={flappyFlightMode}
+              />
+              <FlappyGameScene
+                phase={phase}
+                setPhase={setPhase}
+                score={score}
+                setScore={setScore}
+                flightMode={flappyFlightMode}
+                setFlightMode={setFlappyFlightMode}
+                cameraMode={flappyCameraMode}
+                setCameraMode={setFlappyCameraMode}
+              />
             </Canvas>
           </Suspense>
 

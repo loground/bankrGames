@@ -50,10 +50,10 @@ export function randGapY() {
   return -0.4 + Math.random() * 2.6;
 }
 
-export function makePipe(id) {
+export function makePipe(id, startX = PIPE_START_X) {
   return {
     id,
-    x: PIPE_START_X,
+    x: startX,
     gapY: randGapY(),
     passed: false,
   };
