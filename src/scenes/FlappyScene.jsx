@@ -229,20 +229,25 @@ export function FlappyCameraRig({ phase, isMobile, cameraMode = 'default', fligh
     const birdX = flightMode === 'reverse' ? -BIRD_X : BIRD_X;
 
     if (cameraMode === 'pov' && phase === 'playing') {
-      const targetX = birdX - direction * 2.4;
-      const targetY = 0.95;
-      const targetZ = 2.25;
+      const backOffset = isMobile ? 1.15 : 2.4;
+      const lookAhead = isMobile ? 3.0 : 6.0;
+      const targetX = birdX - direction * backOffset;
+      const targetY = isMobile ? 0.78 : 0.95;
+      const targetZ = isMobile ? 2.9 : 2.25;
       if (!chasePosRef.current) {
         chasePosRef.current = { x: targetX, y: targetY, z: targetZ };
       }
-      chasePosRef.current.x += (targetX - chasePosRef.current.x) * 0.22;
-      chasePosRef.current.y += (targetY - chasePosRef.current.y) * 0.16;
-      chasePosRef.current.z += (targetZ - chasePosRef.current.z) * 0.18;
+      const smoothX = isMobile ? 0.28 : 0.22;
+      const smoothY = isMobile ? 0.2 : 0.16;
+      const smoothZ = isMobile ? 0.22 : 0.18;
+      chasePosRef.current.x += (targetX - chasePosRef.current.x) * smoothX;
+      chasePosRef.current.y += (targetY - chasePosRef.current.y) * smoothY;
+      chasePosRef.current.z += (targetZ - chasePosRef.current.z) * smoothZ;
 
       camera.position.set(chasePosRef.current.x, chasePosRef.current.y, chasePosRef.current.z);
-      camera.fov = isMobile ? 78 : 72;
+      camera.fov = isMobile ? 86 : 72;
       camera.updateProjectionMatrix();
-      camera.lookAt(birdX + direction * 6, 0.24, 0);
+      camera.lookAt(birdX + direction * lookAhead, isMobile ? 0.2 : 0.24, 0);
       return;
     }
 
