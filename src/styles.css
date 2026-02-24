@@ -453,7 +453,7 @@ canvas {
   }
 
   .flappy-score {
-    top: calc(10px + env(safe-area-inset-top));
+    top: calc(38px + env(safe-area-inset-top));
     font-size: 0.78rem;
     line-height: 1.4;
   }
