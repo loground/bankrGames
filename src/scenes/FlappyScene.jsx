@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { Trail } from '@react-three/drei';
 import Bird from '../components/Bird';
 import {
   BIRD_RADIUS,
@@ -70,6 +71,97 @@ function World() {
         <boxGeometry args={[24, 2, 0.5]} />
         <meshStandardMaterial color="#1f2937" />
       </mesh>
+    </>
+  );
+}
+
+function SpeedTrails({ birdXRef, birdYRef, birdZRef, velocityRef, phaseRef }) {
+  const headARef = useRef(null);
+  const headBRef = useRef(null);
+  const headCRef = useRef(null);
+  const headDRef = useRef(null);
+  const headERef = useRef(null);
+  const headFRef = useRef(null);
+  const headGRef = useRef(null);
+  const anchorYRef = useRef(null);
+  const anchorZRef = useRef(null);
+
+  useFrame((state) => {
+    const moving = phaseRef.current === 'playing' || phaseRef.current === 'starting';
+    const speed = Math.abs(velocityRef.current);
+    const power = moving ? Math.min(1.35, speed / 4.6 + (phaseRef.current === 'starting' ? 0.18 : 0)) : 0;
+
+    const baseX = birdXRef.current - 0.28 - power * 0.18;
+    if (anchorYRef.current === null) {
+      anchorYRef.current = birdYRef.current + 0.08;
+    }
+    if (anchorZRef.current === null) {
+      anchorZRef.current = birdZRef.current;
+    }
+    const yFollow = velocityRef.current < -0.35 ? 0.22 : 0.12;
+    anchorYRef.current += (birdYRef.current + 0.08 - anchorYRef.current) * yFollow;
+    anchorZRef.current += (birdZRef.current - anchorZRef.current) * 0.14;
+    const baseY = anchorYRef.current;
+    const baseZ = anchorZRef.current;
+    const t = state.clock.elapsedTime;
+    const active = power > 0.06;
+
+    const heads = [
+      headARef.current,
+      headBRef.current,
+      headCRef.current,
+      headDRef.current,
+      headERef.current,
+      headFRef.current,
+      headGRef.current,
+    ];
+    const yOffsets = [0, 0.05, -0.05, 0.09, -0.09, 0.02, -0.02];
+    const zOffsets = [0, 0.025, -0.025, -0.05, 0.05, 0.07, -0.07];
+
+    for (let i = 0; i < heads.length; i += 1) {
+      const head = heads[i];
+      if (!head) {
+        continue;
+      }
+
+      const jitterY = Math.sin(t * (11 + i * 1.2) + i) * (0.002 + power * 0.006);
+      const jitterZ = Math.cos(t * (9 + i * 1.1) + i * 0.7) * (0.004 + power * 0.009);
+      const drag = i * (0.045 + power * 0.055);
+      const xPulse = Math.sin(t * (22 + i * 2.1) + i * 0.4) * (0.02 + power * 0.1);
+
+      head.position.set(
+        baseX - drag - xPulse,
+        baseY + yOffsets[i] * (1 + power * 0.08) + jitterY,
+        baseZ + zOffsets[i] + jitterZ
+      );
+      head.scale.setScalar(0.44 + power * 0.82);
+      head.visible = active;
+    }
+  });
+
+  return (
+    <>
+      <Trail width={1.25} length={3.2} color="#93c5fd" attenuation={(value) => value * value}>
+        <group ref={headARef} />
+      </Trail>
+      <Trail width={1.05} length={3} color="#67e8f9" attenuation={(value) => value * value}>
+        <group ref={headBRef} />
+      </Trail>
+      <Trail width={1.05} length={3} color="#67e8f9" attenuation={(value) => value * value}>
+        <group ref={headCRef} />
+      </Trail>
+      <Trail width={0.95} length={2.7} color="#c4b5fd" attenuation={(value) => value * value}>
+        <group ref={headDRef} />
+      </Trail>
+      <Trail width={0.95} length={2.7} color="#c4b5fd" attenuation={(value) => value * value}>
+        <group ref={headERef} />
+      </Trail>
+      <Trail width={0.82} length={2.3} color="#f0abfc" attenuation={(value) => value * value}>
+        <group ref={headFRef} />
+      </Trail>
+      <Trail width={0.82} length={2.3} color="#f0abfc" attenuation={(value) => value * value}>
+        <group ref={headGRef} />
+      </Trail>
     </>
   );
 }
@@ -286,6 +378,15 @@ export default function FlappyGameScene({ phase, setPhase, score, setScore }) {
       <directionalLight position={[5, 6, 4]} intensity={1.4} />
       <World />
       {renderedPipes}
+      {phase === 'playing' && (
+        <SpeedTrails
+          birdXRef={birdXRef}
+          birdYRef={birdYRef}
+          birdZRef={birdZRef}
+          velocityRef={velocityRef}
+          phaseRef={phaseRef}
+        />
+      )}
       <Bird x={birdX} y={birdY} z={birdZ} phase={phase} />
     </group>
   );
