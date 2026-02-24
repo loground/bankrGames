@@ -438,7 +438,6 @@ export default function App() {
 
           <Suspense fallback={<SceneLoader title="Loading Flappy Bankr..." />}>
             <Canvas camera={canvasCamera} dpr={canvasDpr}>
-              <color attach="background" args={['#835DEA']} />
               <FlappyCameraRig
                 phase={phase}
                 isMobile={isMobile}

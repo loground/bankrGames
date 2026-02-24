@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Trail } from '@react-three/drei';
+import { BackSide } from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import helvetikerFont from 'three/examples/fonts/helvetiker_bold.typeface.json';
@@ -29,6 +30,228 @@ const SPECIAL_EFFECT_TYPES = ['pov', 'reverse', 'normal'];
 const SPECIAL_SPAWN_MIN_PIPES = 12;
 const SPECIAL_SPAWN_MAX_PIPES = 16;
 const MODE_SWITCH_SAFE_SECONDS = 0.7;
+
+function FlappyBackgroundShader() {
+  const materialRef = useRef(null);
+  const meshRef = useRef(null);
+  const { camera, size } = useThree();
+
+  const uniforms = useMemo(
+    () => ({
+      iTime: { value: 0 },
+      iResolution: { value: [size.width, size.height] },
+    }),
+    [size.height, size.width]
+  );
+
+  useEffect(() => {
+    uniforms.iResolution.value = [size.width, size.height];
+  }, [size.height, size.width, uniforms]);
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.position.copy(camera.position);
+    }
+    if (!materialRef.current) {
+      return;
+    }
+    materialRef.current.uniforms.iTime.value = state.clock.elapsedTime;
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[120, 48, 32]} />
+      <shaderMaterial
+        ref={materialRef}
+        uniforms={uniforms}
+        side={BackSide}
+        depthWrite={false}
+        vertexShader={`
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `}
+        fragmentShader={`
+          precision highp float;
+          varying vec2 vUv;
+          uniform float iTime;
+          uniform vec2 iResolution;
+          float time;
+
+          vec2 hash2(vec2 p)
+          {
+            // texture based white noise (reference)
+            // return textureLod(iChannel0, (p+0.5)/256.0, 0.0).xy;
+            // procedural white noise fallback
+            return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);
+          }
+
+          vec3 voronoi(in vec2 x)
+          {
+            vec2 n = floor(x);
+            vec2 f = fract(x);
+
+            vec2 mg, mr;
+            float md = 8.0;
+            for (int j = -1; j <= 1; j++)
+            for (int i = -1; i <= 1; i++)
+            {
+              vec2 g = vec2(float(i), float(j));
+              vec2 o = hash2(n + g);
+              o = 0.5 + 0.5 * sin(0.1*iTime + 6.2831*o);
+              vec2 r = g + o - f;
+              float d = dot(r,r);
+
+              if (d < md)
+              {
+                md = d;
+                mr = r;
+                mg = g;
+              }
+            }
+
+            md = 8.0;
+            for (int j = -2; j <= 2; j++)
+            for (int i = -2; i <= 2; i++)
+            {
+              vec2 g = mg + vec2(float(i), float(j));
+              vec2 o = hash2(n + g);
+              o = 0.5 + 0.5 * sin(0.1*iTime + 6.2831*o);
+              vec2 r = g + o - f;
+
+              if (dot(mr-r,mr-r) > 0.00001)
+                md = min(md, dot(0.5*(mr+r), normalize(r-mr)));
+            }
+
+            return vec3(md, mr);
+          }
+
+          const mat2 m = mat2(0.80, 0.60, -0.60, 0.80);
+
+          float noise(in vec2 p)
+          {
+            return sin(p.x*10.0) * sin(p.y*(3.0 + sin(time/11.0))) + 0.2;
+          }
+
+          mat2 rotate(float angle)
+          {
+            return mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+          }
+
+          float fbm(vec2 p)
+          {
+            p *= 1.1;
+            float f = 0.0;
+            float amp = 0.5;
+            for (int i = 0; i < 3; i++) {
+              mat2 modify = rotate(time/50.0 * float(i*i));
+              f += amp * noise(p);
+              p = modify * p;
+              p *= 2.0;
+              amp /= 2.2;
+            }
+            return f;
+          }
+
+          float pattern(vec2 p, out vec2 q, out vec2 r) {
+            q = vec2(fbm(p + vec2(1.0)), fbm(rotate(0.1*time)*p + vec2(1.0)));
+            r = vec2(fbm(rotate(0.1)*q + vec2(0.0)), fbm(q + vec2(0.0)));
+            return fbm(p + 1.0*r);
+          }
+
+          float letterBANKR(vec2 g, float id) {
+            float on = 0.0;
+            float x = g.x;
+            float y = g.y;
+
+            if (id < 1.0) { // B
+              if (x < 0.5 || (y < 0.5 || abs(y-2.0) < 0.5 || abs(y-4.0) < 0.5) && x < 4.5 || abs(x-4.0) < 0.5 && (y > 0.5 && y < 1.5 || y > 2.5 && y < 3.5)) on = 1.0;
+            } else if (id < 2.0) { // A
+              if ((x < 0.5 || abs(x-4.0)<0.5) && y > 0.5) on = 1.0;
+              if (y < 0.5 || abs(y-2.0)<0.5) on = 1.0;
+            } else if (id < 3.0) { // N
+              if (x < 0.5 || abs(x-4.0)<0.5 || abs(x-y) < 0.5) on = 1.0;
+            } else if (id < 4.0) { // K
+              if (x < 0.5 || abs(x+y-2.0)<0.5 || abs(x-(y-2.0))<0.5) on = 1.0;
+            } else { // R
+              if (x < 0.5 || y < 0.5 || abs(y-2.0)<0.5) on = 1.0;
+              if (abs(x-4.0)<0.5 && y < 2.0) on = 1.0;
+              if (abs(x-(y-1.0))<0.5 && y > 2.0) on = 1.0;
+            }
+            return on;
+          }
+
+          float sampleFont(vec2 p, float num) {
+            return letterBANKR(p, mod(floor(num), 5.0));
+          }
+
+          float digit(vec2 p){
+            p -= vec2(0.5, 0.5);
+            p *= (1.0 + 0.15*pow(length(p),0.6));
+            p += vec2(0.5, 0.5);
+
+            p.x += sin(iTime/7.0)/5.0;
+            p.y += sin(iTime/13.0)/5.0;
+
+            vec2 grid = vec2(3.0,1.0) * 15.0;
+            vec2 s = floor(p * grid) / grid;
+            p = p * grid;
+            vec2 q;
+            vec2 r;
+            float intensity = pattern(s/10.0, q, r)*1.3 - 0.03;
+            p = fract(p);
+            p *= vec2(1.2, 1.2);
+            float x = fract(p.x * 5.0);
+            float y = fract((1.0 - p.y) * 5.0);
+            vec2 fpos = vec2(floor(p.x * 5.0), floor((1.0 - p.y) * 5.0));
+            float isOn = sampleFont(fpos, floor(intensity*10.0));
+            return p.x <= 1.0 && p.y <= 1.0 ? isOn * (0.2 + y*4.0/5.0) * (0.75 + x/4.0) : 0.0;
+          }
+
+          float hash(float x){
+            return fract(sin(x*234.1)*324.19 + sin(sin(x*3214.09)*34.132*x) + x*234.12);
+          }
+
+          float onOff(float a, float b, float c)
+          {
+            return step(c, sin(iTime + a*cos(iTime*b)));
+          }
+
+          float displace(vec2 look)
+          {
+            float y = (look.y - mod(iTime/4.0,1.0));
+            float window = 1.0/(1.0 + 50.0*y*y);
+            return sin(look.y*20.0 + iTime)/80.0 * onOff(4.0,2.0,0.8) * (1.0 + cos(iTime*60.0)) * window;
+          }
+
+          vec3 getColor(vec2 p){
+            float bar = mod(p.y + time*20.0, 1.0) < 0.2 ? 1.4 : 1.0;
+            p.x += displace(p);
+            float middle = digit(p);
+            float off = 0.002;
+            float sum = 0.0;
+            for (float i = -1.0; i < 2.0; i += 1.0){
+              for (float j = -1.0; j < 2.0; j += 1.0){
+                sum += digit(p + vec2(off*i, off*j));
+              }
+            }
+            return vec3(0.9)*middle + sum/10.0*vec3(0.0,1.0,0.0)*bar;
+          }
+
+          void main() {
+            vec2 fragCoord = vUv * iResolution;
+            time = iTime / 3.0;
+            vec2 p = fragCoord / iResolution.xy;
+            vec3 col = getColor(p);
+            gl_FragColor = vec4(col,1.0);
+          }
+        `}
+      />
+    </mesh>
+  );
+}
 
 function PipePair({ x, gapY }) {
   const gapTop = gapY + PIPE_GAP / 2;
@@ -615,6 +838,7 @@ export default function FlappyGameScene({
 
   return (
     <group>
+      <FlappyBackgroundShader />
       <ambientLight intensity={1.1} />
       <directionalLight position={[5, 6, 4]} intensity={1.4} />
       <World />
