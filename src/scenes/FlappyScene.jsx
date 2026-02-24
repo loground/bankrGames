@@ -112,6 +112,7 @@ function EffectMarker({ x, y, effect }) {
 }
 
 function PovBillions({ flightMode }) {
+  const textRef = useRef(null);
   const geometry = useMemo(() => {
     const font = new FontLoader().parse(helvetikerFont);
     const textGeometry = new TextGeometry('BILLIONS', {
@@ -134,8 +135,16 @@ function PovBillions({ flightMode }) {
   const direction = flightMode === 'reverse' ? -1 : 1;
   const birdX = flightMode === 'reverse' ? -BIRD_X : BIRD_X;
 
+  useFrame((state) => {
+    if (!textRef.current) {
+      return;
+    }
+    textRef.current.position.y = 1.2 + Math.sin(state.clock.elapsedTime * 1.8) * 0.18;
+  });
+
   return (
     <mesh
+      ref={textRef}
       position={[birdX + direction * 9.4, 1.2, 0]}
       rotation={[0, direction === 1 ? -Math.PI / 2 : Math.PI / 2, 0]}
       geometry={geometry}
@@ -229,11 +238,11 @@ export function FlappyCameraRig({ phase, isMobile, cameraMode = 'default', fligh
     const birdX = flightMode === 'reverse' ? -BIRD_X : BIRD_X;
 
     if (cameraMode === 'pov' && phase === 'playing') {
-      const backOffset = isMobile ? 1.15 : 2.4;
-      const lookAhead = isMobile ? 3.0 : 6.0;
+      const backOffset = isMobile ? 0.72 : 2.4;
+      const lookAhead = isMobile ? 2.5 : 6.0;
       const targetX = birdX - direction * backOffset;
-      const targetY = isMobile ? 0.78 : 0.95;
-      const targetZ = isMobile ? 2.9 : 2.25;
+      const targetY = isMobile ? 0.44 : 0.95;
+      const targetZ = isMobile ? 2.55 : 2.25;
       if (!chasePosRef.current) {
         chasePosRef.current = { x: targetX, y: targetY, z: targetZ };
       }
@@ -245,9 +254,9 @@ export function FlappyCameraRig({ phase, isMobile, cameraMode = 'default', fligh
       chasePosRef.current.z += (targetZ - chasePosRef.current.z) * smoothZ;
 
       camera.position.set(chasePosRef.current.x, chasePosRef.current.y, chasePosRef.current.z);
-      camera.fov = isMobile ? 86 : 72;
+      camera.fov = isMobile ? 82 : 72;
       camera.updateProjectionMatrix();
-      camera.lookAt(birdX + direction * lookAhead, isMobile ? 0.2 : 0.24, 0);
+      camera.lookAt(birdX + direction * lookAhead, isMobile ? 0.02 : 0.24, 0);
       return;
     }
 
