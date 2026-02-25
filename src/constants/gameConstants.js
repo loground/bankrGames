@@ -43,7 +43,7 @@ export function getCrossySpeedMultiplier(level) {
 
 export function getPipeSpeedForScore(score) {
   const level = Math.floor(score / 10);
-  return PIPE_SPEED + level * 0.45;
+  return (PIPE_SPEED + level * 0.45) * 1.1;
 }
 
 export function randGapY() {

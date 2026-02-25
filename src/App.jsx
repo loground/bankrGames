@@ -3,30 +3,31 @@ import { Canvas } from '@react-three/fiber';
 import SceneLoader from './components/SceneLoader';
 import GridHoverBackground from './components/GridHoverBackground';
 import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
-import { CrossyGameScene, CrossyMenuCamera, CrossyMenuScene } from './scenes/CrossyScene';
 import MainMenuScene from './scenes/MainMenuScene';
+import MinerScene from './scenes/MinerScene';
 
 export default function App() {
   const [selectedGame, setSelectedGame] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
   const menuMusicRef = useRef(null);
   const flappyMusicRef = useRef(null);
+  const minerMusicRef = useRef(null);
   const [isMenuMusicPlaying, setIsMenuMusicPlaying] = useState(false);
   const [isFlappyMusicPlaying, setIsFlappyMusicPlaying] = useState(false);
+  const [isMinerMusicPlaying, setIsMinerMusicPlaying] = useState(false);
+  const [isMenuMusicEnabled, setIsMenuMusicEnabled] = useState(true);
+  const [isFlappyMusicEnabled, setIsFlappyMusicEnabled] = useState(true);
+  const [isMinerMusicEnabled, setIsMinerMusicEnabled] = useState(true);
 
   const [phase, setPhase] = useState('ready');
   const [score, setScore] = useState(0);
+  const [minerPendingUrl, setMinerPendingUrl] = useState(null);
   const [flappyCameraMode, setFlappyCameraMode] = useState('default');
   const [flappyFlightMode, setFlappyFlightMode] = useState('normal');
   const flappyPovMobileCamSettings = useMemo(() => ({
     normal: { backOffset: 1.25, lookAhead: 3.4, targetY: 1, targetZ: 1.15, fov: 110 },
     reverse: { backOffset: 1.25, lookAhead: 3.4, targetY: 1, targetZ: 1.15, fov: 110 },
   }), []);
-
-  const [crossyMode, setCrossyMode] = useState('menu');
-  const [crossyScore, setCrossyScore] = useState(0);
-  const [crossyLevel, setCrossyLevel] = useState(1);
-  const [crossyRunKey, setCrossyRunKey] = useState(0);
 
   useEffect(() => {
     const onResize = () => {
@@ -56,20 +57,6 @@ export default function App() {
   }, [phase]);
 
   useEffect(() => {
-    if (crossyMode !== 'levelup') {
-      return undefined;
-    }
-
-    const timer = setTimeout(() => {
-      setCrossyLevel((value) => value + 1);
-      setCrossyRunKey((value) => value + 1);
-      setCrossyMode('playing');
-    }, 900);
-
-    return () => clearTimeout(timer);
-  }, [crossyMode]);
-
-  useEffect(() => {
     const audio = new Audio('/mainSong.mp3');
     audio.loop = true;
     audio.volume = 0.45;
@@ -94,12 +81,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const audio = new Audio('/minerSong.mp3');
+    audio.loop = true;
+    audio.volume = 0.45;
+    minerMusicRef.current = audio;
+
+    return () => {
+      audio.pause();
+      minerMusicRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const audio = menuMusicRef.current;
     if (!audio) {
       return;
     }
 
-    if (selectedGame === null) {
+    if (selectedGame === null && isMenuMusicEnabled) {
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.then === 'function') {
         playPromise.then(() => setIsMenuMusicPlaying(true)).catch(() => setIsMenuMusicPlaying(false));
@@ -111,7 +110,7 @@ export default function App() {
 
     audio.pause();
     setIsMenuMusicPlaying(false);
-  }, [selectedGame]);
+  }, [selectedGame, isMenuMusicEnabled]);
 
   useEffect(() => {
     const audio = flappyMusicRef.current;
@@ -119,7 +118,7 @@ export default function App() {
       return;
     }
 
-    if (selectedGame === 'flappy') {
+    if (selectedGame === 'flappy' && isFlappyMusicEnabled) {
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.then === 'function') {
         playPromise.then(() => setIsFlappyMusicPlaying(true)).catch(() => setIsFlappyMusicPlaying(false));
@@ -131,7 +130,27 @@ export default function App() {
 
     audio.pause();
     setIsFlappyMusicPlaying(false);
-  }, [selectedGame]);
+  }, [selectedGame, isFlappyMusicEnabled]);
+
+  useEffect(() => {
+    const audio = minerMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    if (selectedGame === 'miner' && isMinerMusicEnabled) {
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(() => setIsMinerMusicPlaying(true)).catch(() => setIsMinerMusicPlaying(false));
+      } else {
+        setIsMinerMusicPlaying(true);
+      }
+      return;
+    }
+
+    audio.pause();
+    setIsMinerMusicPlaying(false);
+  }, [selectedGame, isMinerMusicEnabled]);
 
   const playMenuMusic = () => {
     const audio = menuMusicRef.current;
@@ -139,6 +158,7 @@ export default function App() {
       return;
     }
 
+    setIsMenuMusicEnabled(true);
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.then === 'function') {
       playPromise.then(() => setIsMenuMusicPlaying(true)).catch(() => setIsMenuMusicPlaying(false));
@@ -153,6 +173,7 @@ export default function App() {
       return;
     }
 
+    setIsMenuMusicEnabled(false);
     audio.pause();
     audio.currentTime = 0;
     setIsMenuMusicPlaying(false);
@@ -164,6 +185,7 @@ export default function App() {
       return;
     }
 
+    setIsFlappyMusicEnabled(true);
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.then === 'function') {
       playPromise.then(() => setIsFlappyMusicPlaying(true)).catch(() => setIsFlappyMusicPlaying(false));
@@ -178,9 +200,54 @@ export default function App() {
       return;
     }
 
+    setIsFlappyMusicEnabled(false);
     audio.pause();
     audio.currentTime = 0;
     setIsFlappyMusicPlaying(false);
+  };
+
+  const playMinerMusic = () => {
+    const audio = minerMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    setIsMinerMusicEnabled(true);
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise.then(() => setIsMinerMusicPlaying(true)).catch(() => setIsMinerMusicPlaying(false));
+    } else {
+      setIsMinerMusicPlaying(true);
+    }
+  };
+
+  const stopMinerMusic = () => {
+    const audio = minerMusicRef.current;
+    if (!audio) {
+      return;
+    }
+
+    setIsMinerMusicEnabled(false);
+    audio.pause();
+    audio.currentTime = 0;
+    setIsMinerMusicPlaying(false);
+  };
+
+  const openMinerDisclaimer = (url) => {
+    setMinerPendingUrl(url);
+  };
+
+  const agreeAndOpenMinerLink = () => {
+    if (!minerPendingUrl) {
+      return;
+    }
+
+    window.open(minerPendingUrl, '_blank', 'noopener,noreferrer');
+    setMinerPendingUrl(null);
+  };
+
+  const closeMinerDisclaimer = () => {
+    setMinerPendingUrl(null);
   };
 
   return (
@@ -217,13 +284,10 @@ export default function App() {
               className="game-option"
               type="button"
               onClick={() => {
-                setCrossyMode('menu');
-                setCrossyScore(0);
-                setCrossyLevel(1);
-                setSelectedGame('crossy');
+                setSelectedGame('miner');
               }}
             >
-              Crossy X
+              Miner
             </button>
           </div>
           <div className="main-audio-controls">
@@ -237,83 +301,85 @@ export default function App() {
         </>
       )}
 
-      {selectedGame === 'crossy' && (
+      {selectedGame === 'miner' && (
         <>
-          <Suspense fallback={<SceneLoader title="Loading Crossy X..." />}>
-            <Canvas camera={canvasCamera} dpr={canvasDpr}>
-              <color attach="background" args={['#835DEA']} />
-              {crossyMode === 'menu' ? (
-                <>
-                  <CrossyMenuCamera />
-                  <CrossyMenuScene />
-                </>
-              ) : (
-                <CrossyGameScene
-                  key={crossyRunKey}
-                  mode={crossyMode}
-                  setMode={setCrossyMode}
-                  score={crossyScore}
-                  setScore={setCrossyScore}
-                  level={crossyLevel}
-                  onLevelComplete={() => {
-                    setCrossyScore((value) => value + 10);
-                  }}
-                />
-              )}
+          <div className="flappy-audio-controls" onPointerDown={(event) => event.stopPropagation()}>
+            <button className="mini-control" type="button" onClick={stopMinerMusic}>
+              Stop
+            </button>
+            <button className="mini-control" type="button" onClick={playMinerMusic}>
+              {isMinerMusicPlaying ? 'Playing' : 'Play'}
+            </button>
+          </div>
+
+          <div className="flappy-back">
+            <button
+              className="game-option"
+              type="button"
+              onClick={() => {
+                setSelectedGame(null);
+                setMinerPendingUrl(null);
+              }}
+            >
+              Back
+            </button>
+          </div>
+          <Suspense fallback={<SceneLoader title="Loading Miner Scene..." />}>
+            <Canvas camera={canvasCamera} dpr={canvasDpr} shadows>
+              <MinerScene />
             </Canvas>
           </Suspense>
-
-          {crossyMode === 'menu' && (
-            <div className="crossy-menu">
-              <div className="selection-title">Crossy X</div>
-              <div className="crossy-subtitle">Menu</div>
-              <button
-                className="game-option"
-                type="button"
-                onClick={() => {
-                  setCrossyScore(0);
-                  setCrossyLevel(1);
-                  setCrossyRunKey((value) => value + 1);
-                  setCrossyMode('playing');
-                }}
-              >
-                Play
-              </button>
-              <button className="game-option" type="button" onClick={() => setSelectedGame(null)}>
-                Back
-              </button>
-            </div>
-          )}
-
-          {crossyMode !== 'menu' && (
-            <div className="crossy-hud">
-              <div className="score">
-                Level: {crossyLevel} | Score: {crossyScore}
+          <div className="hud miner-hud">
+            <img className="miner-top-image" src="/gemMiner.png" alt="Gem Miner" />
+            <div className="miner-bottom-stack">
+              <div className="message miner-description">
+                dig underground -&gt; cashout -&gt; tokens hit your wallet. no app, no download, just go an play.
+                It&apos;s NFT gated: Gem Mining Pickaxe to cashout (0.001eth).
               </div>
-              {crossyMode === 'playing' && <div className="message">Move with Arrow keys/WASD or swipe</div>}
-              {crossyMode === 'levelup' && <div className="message">Level complete! Next level...</div>}
-              {crossyMode === 'gameover' && (
-                <div className="crossy-gameover">
-                  <div className="crossy-gameover-title">Game Over</div>
-                  <div className="crossy-gameover-score">Level: {crossyLevel}</div>
-                  <div className="crossy-gameover-score">Score: {crossyScore}</div>
+              <div className="miner-actions" onPointerDown={(event) => event.stopPropagation()}>
+                <button className="game-option miner-action-button" type="button" onClick={() => openMinerDisclaimer('https://www.gemminer.app')}>
+                  Play
+                </button>
+                <button
+                  className="game-option miner-action-button"
+                  type="button"
+                  onClick={() => openMinerDisclaimer('https://www.netprotocol.app/app/inscribed-drops/mint/base/203')}
+                >
+                  Mint Axe
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {minerPendingUrl && (
+            <div className="miner-disclaimer-overlay" onPointerDown={(event) => event.stopPropagation()}>
+              <div className="miner-disclaimer-card">
+                <div className="miner-disclaimer-text">
+                  The project is not affilated with the dev of the arcade
+                </div>
+                <div className="miner-disclaimer-text">
+                  creator:{' '}
+                  <a href="https://x.com/Simple_on_Base" target="_blank" rel="noreferrer">
+                    https://x.com/Simple_on_Base
+                  </a>
+                </div>
+                <div className="miner-disclaimer-actions">
                   <button
-                    className="game-option"
+                    className="game-option miner-action-button"
                     type="button"
-                    onClick={() => {
-                      setCrossyScore(0);
-                      setCrossyLevel(1);
-                      setCrossyRunKey((value) => value + 1);
-                      setCrossyMode('playing');
-                    }}
+                    onClick={agreeAndOpenMinerLink}
                   >
-                    Restart
+                    Agree
                   </button>
-                  <button className="game-option" type="button" onClick={() => setCrossyMode('menu')}>
-                    Back to Menu
+                  <button
+                    className="game-option miner-action-button"
+                    type="button"
+                    onClick={closeMinerDisclaimer}
+                  >
+                    Back
                   </button>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </>
