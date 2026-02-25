@@ -94,6 +94,24 @@ canvas {
   pointer-events: none;
 }
 
+.selection-disclaimer {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(94vw, 600px);
+  padding: 8px 3px;
+  border: 2px solid rgba(248, 250, 252, 0.72);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.84);
+  color: #f8fafc;
+  text-align: center;
+  font-size: 0.48rem;
+  line-height: 1.6;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
 .selection-title {
   color: #f8fafc;
   font-size: 1.1rem;
@@ -533,6 +551,14 @@ canvas {
     font-size: 0.9rem;
     text-align: center;
     line-height: 1.4;
+  }
+
+  .selection-disclaimer {
+    top: calc(4px + env(safe-area-inset-top) + min(72vw, 560px) * 0.55755 + 5px);
+    width: min(96vw, 680px);
+    font-size: 0.4rem;
+    line-height: 1.5;
+    padding: 7px 3px;
   }
 
   .game-option {

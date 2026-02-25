@@ -159,6 +159,8 @@ export default function App() {
     }
 
     setIsMenuMusicEnabled(true);
+    setIsFlappyMusicEnabled(false);
+    setIsMinerMusicEnabled(false);
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.then === 'function') {
       playPromise.then(() => setIsMenuMusicPlaying(true)).catch(() => setIsMenuMusicPlaying(false));
@@ -174,9 +176,13 @@ export default function App() {
     }
 
     setIsMenuMusicEnabled(false);
+    setIsFlappyMusicEnabled(false);
+    setIsMinerMusicEnabled(false);
     audio.pause();
     audio.currentTime = 0;
     setIsMenuMusicPlaying(false);
+    setIsFlappyMusicPlaying(false);
+    setIsMinerMusicPlaying(false);
   };
 
   const playFlappyMusic = () => {
@@ -185,7 +191,9 @@ export default function App() {
       return;
     }
 
+    setIsMenuMusicEnabled(false);
     setIsFlappyMusicEnabled(true);
+    setIsMinerMusicEnabled(false);
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.then === 'function') {
       playPromise.then(() => setIsFlappyMusicPlaying(true)).catch(() => setIsFlappyMusicPlaying(false));
@@ -200,10 +208,14 @@ export default function App() {
       return;
     }
 
+    setIsMenuMusicEnabled(false);
     setIsFlappyMusicEnabled(false);
+    setIsMinerMusicEnabled(false);
     audio.pause();
     audio.currentTime = 0;
+    setIsMenuMusicPlaying(false);
     setIsFlappyMusicPlaying(false);
+    setIsMinerMusicPlaying(false);
   };
 
   const playMinerMusic = () => {
@@ -212,6 +224,8 @@ export default function App() {
       return;
     }
 
+    setIsMenuMusicEnabled(false);
+    setIsFlappyMusicEnabled(false);
     setIsMinerMusicEnabled(true);
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.then === 'function') {
@@ -227,9 +241,13 @@ export default function App() {
       return;
     }
 
+    setIsMenuMusicEnabled(false);
+    setIsFlappyMusicEnabled(false);
     setIsMinerMusicEnabled(false);
     audio.pause();
     audio.currentTime = 0;
+    setIsMenuMusicPlaying(false);
+    setIsFlappyMusicPlaying(false);
     setIsMinerMusicPlaying(false);
   };
 
@@ -267,6 +285,7 @@ export default function App() {
           </Suspense>
 
           <div className="selection-screen">
+            <div className="selection-disclaimer">not affilated with official bankr bot project or token</div>
             <img className="selection-top-image" src="/bgMainPage.png" alt="Main page banner" />
             <div className="selection-title">Select game</div>
             <button
