@@ -554,8 +554,8 @@ canvas {
   }
 
   .selection-disclaimer {
-    top: calc(4px + env(safe-area-inset-top) + min(72vw, 560px) * 0.55755 + 5px);
-    width: min(96vw, 680px);
+    top: calc(4px + env(safe-area-inset-top) + min(72vw, 560px) * 0.5);
+    width: min(96vw, 420px);
     font-size: 0.4rem;
     line-height: 1.5;
     padding: 7px 3px;
