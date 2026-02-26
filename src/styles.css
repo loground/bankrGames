@@ -743,7 +743,10 @@ canvas {
   }
 
   .flappy-leaderboard-button {
-    top: calc(10px + env(safe-area-inset-top));
+    top: auto;
+    left: calc(10px + env(safe-area-inset-left));
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    transform: none;
   }
 
   .flappy-mode-panel {

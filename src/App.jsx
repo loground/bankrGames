@@ -6,52 +6,138 @@ import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
 import MainMenuScene from './scenes/MainMenuScene';
 import MinerScene from './scenes/MinerScene';
 
-const FLAPPY_LEADERBOARD_KEY = 'bankrBird.flappyLeaderboard.v1';
 const LEADERBOARD_LIMIT = 10;
 const FLAPPY_CHARACTER_IDS = new Set(['bankr', 'deployer', 'thosmur']);
+const FLAPPY_LEADERBOARD_API_BASE =
+  import.meta.env.VITE_FLAPPY_LEADERBOARD_API_BASE || 'https://pqggazplaokncvkhbmaf.supabase.co';
+const FLAPPY_LEADERBOARD_API_TOKEN =
+  import.meta.env.VITE_FLAPPY_LEADERBOARD_API_TOKEN || 'sb_publishable_0GfOYhDiYqAiSoBPUhifOg_b_B0LWHg';
 
-function normalizeLeaderboard(entries) {
+function normalizePlayers(entries) {
   if (!Array.isArray(entries)) {
     return [];
   }
 
-  return entries
+  const mapped = entries
     .filter((entry) => entry && typeof entry.name === 'string' && Number.isFinite(Number(entry.score)))
     .map((entry) => ({
       name: entry.name.trim().slice(0, 14) || 'PLAYER',
       score: Number(entry.score),
       model: FLAPPY_CHARACTER_IDS.has(entry.model) ? entry.model : 'bankr',
-      createdAt: Number(entry.createdAt) || Date.now(),
-    }))
+      createdAt: Number(entry.createdAt) || new Date(entry.created_at || entry.updated_at || Date.now()).getTime(),
+    }));
+
+  // Keep best score per player globally.
+  const bestByPlayer = new Map();
+  for (let i = 0; i < mapped.length; i += 1) {
+    const item = mapped[i];
+    const key = item.name.toUpperCase();
+    const current = bestByPlayer.get(key);
+    if (!current || item.score > current.score || (item.score === current.score && item.createdAt < current.createdAt)) {
+      bestByPlayer.set(key, item);
+    }
+  }
+
+  return Array.from(bestByPlayer.values()).sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    return a.createdAt - b.createdAt;
+  });
+}
+
+function getTopLeaderboard(players) {
+  return normalizePlayers(players).slice(0, LEADERBOARD_LIMIT);
+}
+
+function getLeaderboardQualification(score, players) {
+  if (!Number.isFinite(score) || score <= 0) {
+    return null;
+  }
+  const top = getTopLeaderboard(players);
+  if (top.length < LEADERBOARD_LIMIT) {
+    return top.length;
+  }
+  if (score > top[top.length - 1].score) {
+    return top.length - 1;
+  }
+  return null;
+}
+
+function insertOrUpdatePlayer(players, name, score, model) {
+  const sanitized = normalizePlayers(players);
+  const key = name.trim().slice(0, 14).toUpperCase();
+  let found = false;
+  const next = sanitized.map((entry) => {
+    if (entry.name.toUpperCase() !== key) {
+      return entry;
+    }
+    found = true;
+    if (score > entry.score) {
+      return { name: entry.name, score, model, createdAt: Date.now() };
+    }
+    return entry;
+  });
+
+  if (!found) {
+    next.push({ name: name.trim().slice(0, 14) || 'PLAYER', score, model, createdAt: Date.now() });
+  }
+
+  return normalizePlayers(next);
+}
+
+async function fetchRemotePlayers() {
+  if (!FLAPPY_LEADERBOARD_API_BASE) {
+    return null;
+  }
+  const response = await fetch(
+    `${FLAPPY_LEADERBOARD_API_BASE}/rest/v1/flappy_leaderboard?select=name,score,model,created_at,updated_at&order=score.desc,updated_at.asc&limit=200`,
+    {
+      headers: {
+        apikey: FLAPPY_LEADERBOARD_API_TOKEN,
+        Authorization: `Bearer ${FLAPPY_LEADERBOARD_API_TOKEN}`,
+      },
+    }
+  );
+  if (!response.ok) {
+    throw new Error('Leaderboard fetch failed');
+  }
+  const payload = await response.json();
+  return normalizePlayers(payload ?? []);
+}
+
+async function submitRemotePlayer(name, score, model) {
+  if (!FLAPPY_LEADERBOARD_API_BASE) {
+    return null;
+  }
+  const response = await fetch(`${FLAPPY_LEADERBOARD_API_BASE}/rest/v1/rpc/submit_flappy_score`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: FLAPPY_LEADERBOARD_API_TOKEN,
+      Authorization: `Bearer ${FLAPPY_LEADERBOARD_API_TOKEN}`,
+    },
+    body: JSON.stringify({
+      p_name: name,
+      p_score: score,
+      p_model: model,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error('Leaderboard submit failed');
+  }
+  return fetchRemotePlayers();
+}
+
+function normalizeLeaderboard(entries) {
+  // Backward compatibility for existing call sites that expect top-10 rows.
+  return getTopLeaderboard(entries)
     .sort((a, b) => {
       if (b.score !== a.score) {
         return b.score - a.score;
       }
       return a.createdAt - b.createdAt;
-    })
-    .slice(0, LEADERBOARD_LIMIT);
-}
-
-function getLeaderboardQualification(score, leaderboard) {
-  if (!Number.isFinite(score) || score <= 0) {
-    return null;
-  }
-  const sorted = normalizeLeaderboard(leaderboard);
-  if (sorted.length < LEADERBOARD_LIMIT) {
-    return sorted.length;
-  }
-  if (score > sorted[sorted.length - 1].score) {
-    return sorted.length - 1;
-  }
-  return null;
-}
-
-function insertLeaderboardEntry(leaderboard, name, score, model) {
-  const next = normalizeLeaderboard([
-    ...leaderboard,
-    { name, score, model, createdAt: Date.now() },
-  ]);
-  return next.slice(0, LEADERBOARD_LIMIT);
+    });
 }
 
 export default function App() {
@@ -69,7 +155,7 @@ export default function App() {
 
   const [phase, setPhase] = useState('ready');
   const [score, setScore] = useState(0);
-  const [flappyLeaderboard, setFlappyLeaderboard] = useState([]);
+  const [flappyPlayers, setFlappyPlayers] = useState([]);
   const [isFlappyLeaderboardOpen, setIsFlappyLeaderboardOpen] = useState(false);
   const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(null);
   const [pendingLeaderboardModel, setPendingLeaderboardModel] = useState('bankr');
@@ -77,6 +163,7 @@ export default function App() {
   const [lastSavedScore, setLastSavedScore] = useState(null);
   const [lastSavedModel, setLastSavedModel] = useState('bankr');
   const [flappyCharacterId, setFlappyCharacterId] = useState('bankr');
+  const [leaderboardError, setLeaderboardError] = useState('');
   const gameoverHandledRef = useRef(false);
   const [minerPendingUrl, setMinerPendingUrl] = useState(null);
   const [flappyCameraMode, setFlappyCameraMode] = useState('default');
@@ -88,23 +175,21 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(FLAPPY_LEADERBOARD_KEY);
-      if (!raw) {
-        return;
-      }
-      setFlappyLeaderboard(normalizeLeaderboard(JSON.parse(raw)));
+      fetchRemotePlayers()
+        .then((players) => {
+          if (players) {
+            setFlappyPlayers(players);
+          }
+        })
+        .catch(() => {
+          setLeaderboardError('Leaderboard server unavailable');
+        });
     } catch {
-      setFlappyLeaderboard([]);
+      setLeaderboardError('Leaderboard server unavailable');
     }
   }, []);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(FLAPPY_LEADERBOARD_KEY, JSON.stringify(flappyLeaderboard));
-    } catch {
-      // ignore storage failures
-    }
-  }, [flappyLeaderboard]);
+  const flappyLeaderboard = useMemo(() => getTopLeaderboard(flappyPlayers), [flappyPlayers]);
 
   useEffect(() => {
     if (phase === 'gameover') {
@@ -112,7 +197,7 @@ export default function App() {
         return;
       }
       gameoverHandledRef.current = true;
-      const qualificationIndex = getLeaderboardQualification(score, flappyLeaderboard);
+      const qualificationIndex = getLeaderboardQualification(score, flappyPlayers);
       if (qualificationIndex !== null) {
         setPendingLeaderboardScore(score);
         setPendingLeaderboardModel(flappyCharacterId);
@@ -128,7 +213,7 @@ export default function App() {
       setLastSavedScore(null);
       setLastSavedModel('bankr');
     }
-  }, [phase, score, flappyLeaderboard, flappyCharacterId]);
+  }, [phase, score, flappyPlayers, flappyCharacterId]);
 
   useEffect(() => {
     const onResize = () => {
@@ -375,13 +460,22 @@ export default function App() {
     }
 
     const nextName = leaderboardName.trim().slice(0, 14) || 'PLAYER';
-    const nextBoard = insertLeaderboardEntry(flappyLeaderboard, nextName, pendingLeaderboardScore, pendingLeaderboardModel);
-    setFlappyLeaderboard(nextBoard);
+    const nextLocal = insertOrUpdatePlayer(flappyPlayers, nextName, pendingLeaderboardScore, pendingLeaderboardModel);
+    setFlappyPlayers(nextLocal);
     setLastSavedScore(pendingLeaderboardScore);
     setLastSavedModel(pendingLeaderboardModel);
     setPendingLeaderboardScore(null);
     setLeaderboardName('');
     setIsFlappyLeaderboardOpen(true);
+    submitRemotePlayer(nextName, pendingLeaderboardScore, pendingLeaderboardModel)
+      .then((players) => {
+        if (players) {
+          setFlappyPlayers(players);
+        }
+      })
+      .catch(() => {
+        setLeaderboardError('Leaderboard server unavailable');
+      });
   };
 
   return (
@@ -748,6 +842,7 @@ export default function App() {
                 <div>Your Score: {score}</div>
                 {lastSavedScore === score && <div className="gameover-saved">Saved to Top 10 ({lastSavedModel})</div>}
                 <div className="leaderboard-title">Top 10</div>
+                {leaderboardError && <div className="leaderboard-empty">{leaderboardError}</div>}
                 {flappyLeaderboard.length === 0 && <div className="leaderboard-empty">No scores yet</div>}
                 {flappyLeaderboard.map((entry, index) => (
                   <div key={`${entry.createdAt}-${entry.name}-${entry.score}`} className="leaderboard-row">
@@ -786,6 +881,7 @@ export default function App() {
             <div className="miner-disclaimer-overlay" onPointerDown={(event) => event.stopPropagation()}>
               <div className="miner-disclaimer-card">
                 <div className="leaderboard-title">Flappy Top 10</div>
+                {leaderboardError && <div className="leaderboard-empty">{leaderboardError}</div>}
                 {flappyLeaderboard.length === 0 && <div className="leaderboard-empty">No scores yet</div>}
                 {flappyLeaderboard.map((entry, index) => (
                   <div key={`${entry.createdAt}-${entry.name}-${entry.score}`} className="leaderboard-row">
