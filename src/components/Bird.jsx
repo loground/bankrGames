@@ -126,6 +126,7 @@ export default function Bird({
     }
 
     const readyClip = animationMap?.ready ?? 0;
+    const startingClip = animationMap?.starting ?? (animationMap?.playing ?? 2);
     const playingClip = animationMap?.playing ?? 2;
     const gameoverClip = animationMap?.gameover ?? 1;
 
@@ -134,7 +135,12 @@ export default function Bird({
       return;
     }
 
-    if (phase === 'starting' || phase === 'playing') {
+    if (phase === 'starting') {
+      playClip(startingClip, LoopRepeat, Infinity, false);
+      return;
+    }
+
+    if (phase === 'playing') {
       playClip(playingClip, LoopRepeat, Infinity, false);
       return;
     }

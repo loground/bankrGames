@@ -33,7 +33,7 @@ const MODE_SWITCH_SAFE_SECONDS = 0.7;
 const FLAPPY_CHARACTERS = [
   { id: 'bankr', path: '/3d/bankr3_opt.glb', animationMap: { ready: 0, playing: 2, gameover: 1 }, positionOffset: [0, 0, 0], rotationOffsetY: 0 },
   { id: 'deployer', path: '/3d/flappy/deployer.glb', animationMap: { ready: 2, playing: 1, gameover: 0 }, positionOffset: [-0.2, 0, 0], rotationOffsetY: 0 },
-  { id: 'thosmur', path: '/3d/flappy/thosmur.glb', animationMap: { ready: 1, playing: 0, gameover: 2 }, positionOffset: [0, 0, 0], rotationOffsetY: -Math.PI / 2 },
+  { id: 'thosmur', path: '/3d/flappy/thosmur.glb', animationMap: { ready: 1, starting: 1, playing: 0, gameover: 2 }, positionOffset: [0, 0, 0], rotationOffsetY: -Math.PI / 2 },
 ];
 const CHARACTER_TRANSITION_MS = 220;
 
@@ -108,15 +108,6 @@ precision highp float;
 varying vec2 vUv;
 uniform float iTime;
 uniform vec2 iResolution;
-#define pi 3.1415926535897932384626433832795
-
-struct ITSC
-{
-  vec3 p;
-  float dist;
-  vec3 n;
-  vec2 uv;
-};
 
 vec2 rotate(vec2 p, float a)
 {
@@ -128,16 +119,10 @@ float hash2v(vec2 p)
   return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453);
 }
 
-float hash3v(vec3 p)
+float noise(vec2 p)
 {
-  return fract(sin(dot(p, vec3(127.1,311.7,191.999))) * 43758.5453);
-}
-
-float nse(vec2 p)
-{
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
+  vec2 i = floor(p), f = fract(p);
+  f = f*f*(3.0-2.0*f);
   float a = hash2v(i);
   float b = hash2v(i + vec2(1.0, 0.0));
   float c = hash2v(i + vec2(0.0, 1.0));
@@ -145,133 +130,35 @@ float nse(vec2 p)
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-float nse3d(vec3 p)
+float fbm(vec2 p)
 {
-  vec3 i = floor(p);
-  vec3 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  float n000 = hash3v(i + vec3(0.0,0.0,0.0));
-  float n100 = hash3v(i + vec3(1.0,0.0,0.0));
-  float n010 = hash3v(i + vec3(0.0,1.0,0.0));
-  float n110 = hash3v(i + vec3(1.0,1.0,0.0));
-  float n001 = hash3v(i + vec3(0.0,0.0,1.0));
-  float n101 = hash3v(i + vec3(1.0,0.0,1.0));
-  float n011 = hash3v(i + vec3(0.0,1.0,1.0));
-  float n111 = hash3v(i + vec3(1.0,1.0,1.0));
-  float nx00 = mix(n000, n100, f.x);
-  float nx10 = mix(n010, n110, f.x);
-  float nx01 = mix(n001, n101, f.x);
-  float nx11 = mix(n011, n111, f.x);
-  return mix(mix(nx00, nx10, f.y), mix(nx01, nx11, f.y), f.z);
-}
-
-ITSC raycylh(vec3 ro, vec3 rd, vec3 c, float r)
-{
-  ITSC i;
-  i.dist = 1e38;
-  vec3 e = ro - c;
-  float a = dot(rd.xy, rd.xy);
-  float b = 2.0 * dot(e.xy, rd.xy);
-  float cc = dot(e.xy, e.xy) - r;
-  float f = b * b - 4.0 * a * cc;
-  if(f > 0.0)
-  {
-    f = sqrt(f);
-    float t = (-b + f) / (2.0 * a);
-    if(t > 0.001)
-    {
-      i.dist = t;
-      i.p = e + rd * t;
-      i.n = -vec3(normalize(i.p.xy), 0.0);
-    }
-  }
-  return i;
-}
-
-void tPlane(inout ITSC hit, vec3 ro, vec3 rd, vec3 o, vec3 n, vec3 tg, vec2 si)
-{
-  vec2 uv;
-  ro -= o;
-  float t = -dot(ro, n) / dot(rd, n);
-  if(t < 0.0) return;
-  vec3 its = ro + rd * t;
-  uv.x = dot(its, tg);
-  uv.y = dot(its, cross(tg, n));
-  if(abs(uv.x) > si.x || abs(uv.y) > si.y) return;
-  hit.dist = t;
-  hit.uv = uv;
-}
-
-float fbmCloud(vec3 p, int oct)
-{
-  p += (nse3d(p * 3.0) - 0.5) * 0.3;
-  float mtn = iTime * 0.15;
   float v = 0.0;
-  float fq = 1.0, am = 0.5;
-  for(int i = 0; i < 9; i++)
-  {
-    if(i >= oct) break;
-    v += nse3d(p * fq + mtn * fq) * am;
-    fq *= 2.0;
-    am *= 0.5;
+  float a = 0.5;
+  mat2 r = mat2(0.8, -0.6, 0.6, 0.8);
+  for (int i = 0; i < 5; i++) {
+    v += a * noise(p);
+    p = r * p * 2.0;
+    a *= 0.5;
   }
   return v;
 }
 
-float density(vec3 p, int oct)
-{
-  vec2 pol = vec2(atan(p.y, p.x), length(p.yx));
-  float v = fbmCloud(p, oct);
-  float fo = (pol.y - 1.5);
-  v *= exp(fo * fo * -5.0);
-  float edg = 0.3;
-  return smoothstep(edg, edg + 0.1, v);
-}
-
 void main()
 {
-  vec2 fragCoord = vUv * iResolution;
-  vec2 uv = fragCoord.xy / iResolution.xy;
-  uv = 2.0 * uv - 1.0;
+  vec2 uv = vUv * 2.0 - 1.0;
   uv.x *= iResolution.x / iResolution.y;
+  uv = rotate(uv, sin(iTime * 0.22) * 0.3);
 
-  float camtm = iTime * 0.15;
-  vec3 ro = vec3(cos(camtm), 0.0, camtm);
-  vec3 rd = normalize(vec3(uv, 1.2));
-  rd.xz = rotate(rd.xz, sin(camtm) * 0.4);
-  rd.yz = rotate(rd.yz, sin(camtm * 1.3) * 0.4);
+  float ring = abs(length(uv) - 0.55);
+  float tunnel = smoothstep(0.25, 0.0, ring);
+  float wisps = fbm(uv * 3.6 + vec2(iTime * 0.4, -iTime * 0.22));
+  float streaks = fbm(uv * 7.4 + vec2(iTime * 0.9, iTime * 0.35));
+  float glow = smoothstep(0.0, 1.0, wisps * 1.2 + streaks * 0.45) * tunnel;
 
-  float sd = sin(fragCoord.x * 0.01 + fragCoord.y * 3.333333333 + iTime) * 1298729.146861;
-  vec3 col;
-  float dacc = 0.0, lacc = 0.0;
-  vec3 light = vec3(cos(iTime * 8.0) * 0.5, sin(iTime * 4.0) * 0.5, ro.z + 4.0 + sin(iTime));
-
-  ITSC tunRef;
-  const int STP = 15;
-  float densA = 1.0;
-  float densB = 2.0;
-  for(int i = 0; i < STP; i++)
-  {
-    ITSC itsc = raycylh(ro, rd, vec3(0.0), densB + float(i) * (densA - densB) / float(STP) + fract(sd) * 0.07);
-    float d = density(itsc.p, 6);
-    vec3 tol = light - itsc.p;
-    float dtol = length(tol);
-    tol = tol * 0.1 / dtol;
-    float dl = density(itsc.p + tol, 6);
-    lacc += max(d - dl, 0.0) * exp(dtol * -0.2);
-    dacc += d;
-    tunRef = itsc;
-  }
-  dacc /= float(STP);
-  ITSC itsc = raycylh(ro, rd, vec3(0.0), 4.0);
-  vec3 sky = vec3(0.6, 0.3, 0.2);
-  sky *= 0.9 * pow(density(itsc.p, 9), 2.0);
-  lacc = max(lacc * 0.3 + 0.3, 0.0);
-  vec3 cloud = pow(vec3(lacc), vec3(0.7, 1.0, 1.0));
-  col = mix(sky, cloud, dacc);
-  col *= exp(tunRef.dist * -0.1);
-  col = pow(col, vec3(1.0, 0.8, 0.5) * 1.5) * 1.5;
-  col = pow(col, vec3(1.0 / 2.2));
+  vec3 bg = vec3(0.14, 0.07, 0.18);
+  vec3 tint = vec3(0.95, 0.45, 0.22);
+  vec3 col = bg + glow * tint;
+  col += vec3(0.6, 0.25, 0.15) * exp(-8.0 * ring * ring);
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -844,6 +731,7 @@ export default function FlappyGameScene({
   setFlightMode,
   cameraMode = 'default',
   setCameraMode,
+  onCharacterChange = null,
 }) {
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
   const [previousCharacterIndex, setPreviousCharacterIndex] = useState(null);
@@ -1053,12 +941,18 @@ export default function FlappyGameScene({
 
   const activeCharacter = FLAPPY_CHARACTERS[activeCharacterIndex];
   const previousCharacter = previousCharacterIndex !== null ? FLAPPY_CHARACTERS[previousCharacterIndex] : null;
+
+  useEffect(() => {
+    if (typeof onCharacterChange === 'function') {
+      onCharacterChange(activeCharacter.id);
+    }
+  }, [activeCharacter.id, onCharacterChange]);
   const getPhaseCharacterRotation = useCallback(
     (character) => {
       if (!character) {
         return 0;
       }
-      if (character.id === 'thosmur' && phase === 'playing') {
+      if (character.id === 'thosmur' && (phase === 'starting' || phase === 'playing')) {
         return (character.rotationOffsetY ?? 0) + Math.PI / 2;
       }
       return character.rotationOffsetY ?? 0;
@@ -1241,7 +1135,7 @@ export default function FlappyGameScene({
         />
       )}
       <CharacterSelector
-        visible={phase === 'ready' || phase === 'gameover'}
+        visible={phase === 'ready'}
         isMobile={isMobile}
         onPrev={() => switchCharacter(-1)}
         onNext={() => switchCharacter(1)}

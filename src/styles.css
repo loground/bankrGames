@@ -222,6 +222,16 @@ canvas {
   font-family: 'Press Start 2P', 'Courier New', monospace;
 }
 
+.flappy-leaderboard-button {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  pointer-events: auto;
+}
+
 .flappy-mode-panel {
   position: absolute;
   top: 16px;
@@ -497,6 +507,49 @@ canvas {
   letter-spacing: 0.05em;
 }
 
+.gameover-leaderboard {
+  width: min(92vw, 460px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-title {
+  margin-top: 4px;
+  color: #fedb48;
+}
+
+.leaderboard-empty {
+  color: #cbd5e1;
+  font-size: 0.7rem;
+}
+
+.gameover-saved {
+  color: #86efac;
+  font-size: 0.7rem;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.68rem;
+  color: #f8fafc;
+}
+
+.leaderboard-input {
+  width: min(82vw, 300px);
+  border: 2px solid rgba(248, 250, 252, 0.75);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+}
+
 .scene-loader {
   position: absolute;
   inset: 0;
@@ -652,6 +705,17 @@ canvas {
     font-size: 0.8rem;
   }
 
+  .leaderboard-row,
+  .leaderboard-empty,
+  .gameover-saved {
+    font-size: 0.52rem;
+  }
+
+  .leaderboard-input {
+    font-size: 0.5rem;
+    padding: 8px 10px;
+  }
+
   .scene-loader-card {
     width: min(88vw, 360px);
     font-size: 0.58rem;
@@ -676,6 +740,10 @@ canvas {
   .flappy-audio-controls {
     top: calc(10px + env(safe-area-inset-top));
     left: calc(10px + env(safe-area-inset-left));
+  }
+
+  .flappy-leaderboard-button {
+    top: calc(10px + env(safe-area-inset-top));
   }
 
   .flappy-mode-panel {

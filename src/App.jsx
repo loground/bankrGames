@@ -6,6 +6,54 @@ import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
 import MainMenuScene from './scenes/MainMenuScene';
 import MinerScene from './scenes/MinerScene';
 
+const FLAPPY_LEADERBOARD_KEY = 'bankrBird.flappyLeaderboard.v1';
+const LEADERBOARD_LIMIT = 10;
+const FLAPPY_CHARACTER_IDS = new Set(['bankr', 'deployer', 'thosmur']);
+
+function normalizeLeaderboard(entries) {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  return entries
+    .filter((entry) => entry && typeof entry.name === 'string' && Number.isFinite(Number(entry.score)))
+    .map((entry) => ({
+      name: entry.name.trim().slice(0, 14) || 'PLAYER',
+      score: Number(entry.score),
+      model: FLAPPY_CHARACTER_IDS.has(entry.model) ? entry.model : 'bankr',
+      createdAt: Number(entry.createdAt) || Date.now(),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.createdAt - b.createdAt;
+    })
+    .slice(0, LEADERBOARD_LIMIT);
+}
+
+function getLeaderboardQualification(score, leaderboard) {
+  if (!Number.isFinite(score) || score <= 0) {
+    return null;
+  }
+  const sorted = normalizeLeaderboard(leaderboard);
+  if (sorted.length < LEADERBOARD_LIMIT) {
+    return sorted.length;
+  }
+  if (score > sorted[sorted.length - 1].score) {
+    return sorted.length - 1;
+  }
+  return null;
+}
+
+function insertLeaderboardEntry(leaderboard, name, score, model) {
+  const next = normalizeLeaderboard([
+    ...leaderboard,
+    { name, score, model, createdAt: Date.now() },
+  ]);
+  return next.slice(0, LEADERBOARD_LIMIT);
+}
+
 export default function App() {
   const [selectedGame, setSelectedGame] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
@@ -21,6 +69,15 @@ export default function App() {
 
   const [phase, setPhase] = useState('ready');
   const [score, setScore] = useState(0);
+  const [flappyLeaderboard, setFlappyLeaderboard] = useState([]);
+  const [isFlappyLeaderboardOpen, setIsFlappyLeaderboardOpen] = useState(false);
+  const [pendingLeaderboardScore, setPendingLeaderboardScore] = useState(null);
+  const [pendingLeaderboardModel, setPendingLeaderboardModel] = useState('bankr');
+  const [leaderboardName, setLeaderboardName] = useState('');
+  const [lastSavedScore, setLastSavedScore] = useState(null);
+  const [lastSavedModel, setLastSavedModel] = useState('bankr');
+  const [flappyCharacterId, setFlappyCharacterId] = useState('bankr');
+  const gameoverHandledRef = useRef(false);
   const [minerPendingUrl, setMinerPendingUrl] = useState(null);
   const [flappyCameraMode, setFlappyCameraMode] = useState('default');
   const [flappyFlightMode, setFlappyFlightMode] = useState('normal');
@@ -28,6 +85,50 @@ export default function App() {
     normal: { backOffset: 1.25, lookAhead: 3.4, targetY: 1, targetZ: 1.15, fov: 110 },
     reverse: { backOffset: 1.25, lookAhead: 3.4, targetY: 1, targetZ: 1.15, fov: 110 },
   }), []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(FLAPPY_LEADERBOARD_KEY);
+      if (!raw) {
+        return;
+      }
+      setFlappyLeaderboard(normalizeLeaderboard(JSON.parse(raw)));
+    } catch {
+      setFlappyLeaderboard([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FLAPPY_LEADERBOARD_KEY, JSON.stringify(flappyLeaderboard));
+    } catch {
+      // ignore storage failures
+    }
+  }, [flappyLeaderboard]);
+
+  useEffect(() => {
+    if (phase === 'gameover') {
+      if (gameoverHandledRef.current) {
+        return;
+      }
+      gameoverHandledRef.current = true;
+      const qualificationIndex = getLeaderboardQualification(score, flappyLeaderboard);
+      if (qualificationIndex !== null) {
+        setPendingLeaderboardScore(score);
+        setPendingLeaderboardModel(flappyCharacterId);
+        setLeaderboardName('');
+      }
+      return;
+    }
+
+    gameoverHandledRef.current = false;
+    if (phase === 'ready') {
+      setPendingLeaderboardScore(null);
+      setLeaderboardName('');
+      setLastSavedScore(null);
+      setLastSavedModel('bankr');
+    }
+  }, [phase, score, flappyLeaderboard, flappyCharacterId]);
 
   useEffect(() => {
     const onResize = () => {
@@ -268,6 +369,21 @@ export default function App() {
     setMinerPendingUrl(null);
   };
 
+  const submitLeaderboardScore = () => {
+    if (pendingLeaderboardScore === null) {
+      return;
+    }
+
+    const nextName = leaderboardName.trim().slice(0, 14) || 'PLAYER';
+    const nextBoard = insertLeaderboardEntry(flappyLeaderboard, nextName, pendingLeaderboardScore, pendingLeaderboardModel);
+    setFlappyLeaderboard(nextBoard);
+    setLastSavedScore(pendingLeaderboardScore);
+    setLastSavedModel(pendingLeaderboardModel);
+    setPendingLeaderboardScore(null);
+    setLeaderboardName('');
+    setIsFlappyLeaderboardOpen(true);
+  };
+
   return (
     <div className="app">
       {selectedGame === null && (
@@ -425,11 +541,22 @@ export default function App() {
                 setScore(0);
                 setFlappyCameraMode('default');
                 setFlappyFlightMode('normal');
+                setFlappyCharacterId('bankr');
+                setIsFlappyLeaderboardOpen(false);
+                setPendingLeaderboardScore(null);
               }}
             >
               Back
             </button>
           </div>
+
+          {phase === 'ready' && (
+            <div className="flappy-leaderboard-button" onPointerDown={(event) => event.stopPropagation()}>
+              <button className="mini-control" type="button" onClick={() => setIsFlappyLeaderboardOpen(true)}>
+                Leaderboard
+              </button>
+            </div>
+          )}
 
           {phase === 'ready' && (
             <div className="game-title">
@@ -608,6 +735,7 @@ export default function App() {
                 setFlightMode={setFlappyFlightMode}
                 cameraMode={flappyCameraMode}
                 setCameraMode={setFlappyCameraMode}
+                onCharacterChange={setFlappyCharacterId}
               />
             </Canvas>
           </Suspense>
@@ -615,8 +743,65 @@ export default function App() {
           <div className="hud">
             {phase === 'playing' && <div className="flappy-score">Score: {score}</div>}
             <div className="message flappy-message">{hudMessage}</div>
-            {phase === 'gameover' && <div className="gameover-score">Score: {score}</div>}
+            {phase === 'gameover' && (
+              <div className="gameover-score gameover-leaderboard">
+                <div>Your Score: {score}</div>
+                {lastSavedScore === score && <div className="gameover-saved">Saved to Top 10 ({lastSavedModel})</div>}
+                <div className="leaderboard-title">Top 10</div>
+                {flappyLeaderboard.length === 0 && <div className="leaderboard-empty">No scores yet</div>}
+                {flappyLeaderboard.map((entry, index) => (
+                  <div key={`${entry.createdAt}-${entry.name}-${entry.score}`} className="leaderboard-row">
+                    <span>{index + 1}.</span>
+                    <span>{entry.name} [{entry.model}]</span>
+                    <span>{entry.score}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {pendingLeaderboardScore !== null && (
+            <div className="miner-disclaimer-overlay" onPointerDown={(event) => event.stopPropagation()}>
+              <div className="miner-disclaimer-card">
+                <div className="miner-disclaimer-text">New Top 10 score: {pendingLeaderboardScore}</div>
+                <div className="miner-disclaimer-text">Character: {pendingLeaderboardModel}</div>
+                <div className="miner-disclaimer-text">Enter your name</div>
+                <input
+                  className="leaderboard-input"
+                  value={leaderboardName}
+                  onChange={(event) => setLeaderboardName(event.target.value)}
+                  maxLength={14}
+                  placeholder="PLAYER"
+                />
+                <div className="miner-disclaimer-actions">
+                  <button className="game-option miner-action-button" type="button" onClick={submitLeaderboardScore}>
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isFlappyLeaderboardOpen && (
+            <div className="miner-disclaimer-overlay" onPointerDown={(event) => event.stopPropagation()}>
+              <div className="miner-disclaimer-card">
+                <div className="leaderboard-title">Flappy Top 10</div>
+                {flappyLeaderboard.length === 0 && <div className="leaderboard-empty">No scores yet</div>}
+                {flappyLeaderboard.map((entry, index) => (
+                  <div key={`${entry.createdAt}-${entry.name}-${entry.score}`} className="leaderboard-row">
+                    <span>{index + 1}.</span>
+                    <span>{entry.name} [{entry.model}]</span>
+                    <span>{entry.score}</span>
+                  </div>
+                ))}
+                <div className="miner-disclaimer-actions">
+                  <button className="game-option miner-action-button" type="button" onClick={() => setIsFlappyLeaderboardOpen(false)}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
