@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Trail } from '@react-three/drei';
+import { Html, Trail, useGLTF, useProgress } from '@react-three/drei';
 import { BackSide } from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
@@ -30,10 +30,256 @@ const SPECIAL_EFFECT_TYPES = ['pov', 'reverse', 'normal'];
 const SPECIAL_SPAWN_MIN_PIPES = 12;
 const SPECIAL_SPAWN_MAX_PIPES = 16;
 const MODE_SWITCH_SAFE_SECONDS = 0.7;
+const FLAPPY_CHARACTERS = [
+  { id: 'bankr', path: '/3d/bankr3_opt.glb', animationMap: { ready: 0, playing: 2, gameover: 1 }, positionOffset: [0, 0, 0], rotationOffsetY: 0 },
+  { id: 'deployer', path: '/3d/flappy/deployer.glb', animationMap: { ready: 2, playing: 1, gameover: 0 }, positionOffset: [-0.2, 0, 0], rotationOffsetY: 0 },
+  { id: 'thosmur', path: '/3d/flappy/thosmur.glb', animationMap: { ready: 1, playing: 0, gameover: 2 }, positionOffset: [0, 0, 0], rotationOffsetY: -Math.PI / 2 },
+];
+const CHARACTER_TRANSITION_MS = 220;
 
-function FlappyBackgroundShader() {
+FLAPPY_CHARACTERS.forEach((character) => {
+  useGLTF.preload(character.path);
+});
+
+const DEPLOYER_BACKGROUND_SHADER = `
+precision highp float;
+varying vec2 vUv;
+uniform float iTime;
+uniform vec2 iResolution;
+
+float map(in vec3 p)
+{
+  vec3 q = mod(p + 2.0, 4.0) - 2.0;
+  float d1 = length(q) - 1.0;
+  d1 += 0.1*sin(10.0*p.x)*sin(10.0*p.y + iTime)*sin(10.0*p.z);
+  float d2 = p.y + 1.0;
+  float k = 1.5;
+  float h = clamp(0.5 + 0.5*(d1-d2)/k, 0.0, 1.0);
+  return mix(d1, d2, h) - k*h*(1.0-h);
+}
+
+vec3 calcNormal(in vec3 p)
+{
+  vec2 e = vec2(0.0001, 0.0);
+  return normalize(vec3(
+    map(p + e.xyy) - map(p - e.xyy),
+    map(p + e.yxy) - map(p - e.yxy),
+    map(p + e.yyx) - map(p - e.yyx)
+  ));
+}
+
+void main()
+{
+  vec2 fragCoord = vUv * iResolution;
+  vec2 uv = fragCoord.xy / iResolution.xy;
+  vec2 p = -1.0 + 2.0*uv;
+  p.x *= iResolution.x/iResolution.y;
+  vec3 ro = vec3(0.0, 0.0, 2.0);
+  vec3 rd = normalize(vec3(p, -1.0));
+  vec3 col = vec3(0.0);
+  float tmax = 20.0;
+  float h = 1.0;
+  float t = 0.0;
+
+  for(int i=0; i<100; i++)
+  {
+    if(h < 0.0001 || t > tmax) break;
+    h = map(ro + t*rd);
+    t += h;
+  }
+
+  vec3 lig = vec3(0.5773);
+  if(t < tmax)
+  {
+    vec3 pos = ro + t*rd;
+    vec3 nor = calcNormal(pos);
+    col = vec3(1.0, 0.8, 0.5)*clamp(dot(nor, lig), 0.0, 1.0);
+    col += vec3(0.2, 0.3, 0.4)*clamp(nor.y, 0.0, 1.0);
+    col += vec3(1.0, 0.7, 0.2)*clamp(1.0 + dot(rd, nor), 0.0, 1.0);
+    col *= 0.8;
+    col *= exp(-0.1*t);
+  }
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+const THOSMUR_BACKGROUND_SHADER = `
+precision highp float;
+varying vec2 vUv;
+uniform float iTime;
+uniform vec2 iResolution;
+#define pi 3.1415926535897932384626433832795
+
+struct ITSC
+{
+  vec3 p;
+  float dist;
+  vec3 n;
+  vec2 uv;
+};
+
+vec2 rotate(vec2 p, float a)
+{
+  return vec2(p.x * cos(a) - p.y * sin(a), p.x * sin(a) + p.y * cos(a));
+}
+
+float hash2v(vec2 p)
+{
+  return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453);
+}
+
+float hash3v(vec3 p)
+{
+  return fract(sin(dot(p, vec3(127.1,311.7,191.999))) * 43758.5453);
+}
+
+float nse(vec2 p)
+{
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash2v(i);
+  float b = hash2v(i + vec2(1.0, 0.0));
+  float c = hash2v(i + vec2(0.0, 1.0));
+  float d = hash2v(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float nse3d(vec3 p)
+{
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float n000 = hash3v(i + vec3(0.0,0.0,0.0));
+  float n100 = hash3v(i + vec3(1.0,0.0,0.0));
+  float n010 = hash3v(i + vec3(0.0,1.0,0.0));
+  float n110 = hash3v(i + vec3(1.0,1.0,0.0));
+  float n001 = hash3v(i + vec3(0.0,0.0,1.0));
+  float n101 = hash3v(i + vec3(1.0,0.0,1.0));
+  float n011 = hash3v(i + vec3(0.0,1.0,1.0));
+  float n111 = hash3v(i + vec3(1.0,1.0,1.0));
+  float nx00 = mix(n000, n100, f.x);
+  float nx10 = mix(n010, n110, f.x);
+  float nx01 = mix(n001, n101, f.x);
+  float nx11 = mix(n011, n111, f.x);
+  return mix(mix(nx00, nx10, f.y), mix(nx01, nx11, f.y), f.z);
+}
+
+ITSC raycylh(vec3 ro, vec3 rd, vec3 c, float r)
+{
+  ITSC i;
+  i.dist = 1e38;
+  vec3 e = ro - c;
+  float a = dot(rd.xy, rd.xy);
+  float b = 2.0 * dot(e.xy, rd.xy);
+  float cc = dot(e.xy, e.xy) - r;
+  float f = b * b - 4.0 * a * cc;
+  if(f > 0.0)
+  {
+    f = sqrt(f);
+    float t = (-b + f) / (2.0 * a);
+    if(t > 0.001)
+    {
+      i.dist = t;
+      i.p = e + rd * t;
+      i.n = -vec3(normalize(i.p.xy), 0.0);
+    }
+  }
+  return i;
+}
+
+void tPlane(inout ITSC hit, vec3 ro, vec3 rd, vec3 o, vec3 n, vec3 tg, vec2 si)
+{
+  vec2 uv;
+  ro -= o;
+  float t = -dot(ro, n) / dot(rd, n);
+  if(t < 0.0) return;
+  vec3 its = ro + rd * t;
+  uv.x = dot(its, tg);
+  uv.y = dot(its, cross(tg, n));
+  if(abs(uv.x) > si.x || abs(uv.y) > si.y) return;
+  hit.dist = t;
+  hit.uv = uv;
+}
+
+float fbmCloud(vec3 p, int oct)
+{
+  p += (nse3d(p * 3.0) - 0.5) * 0.3;
+  float mtn = iTime * 0.15;
+  float v = 0.0;
+  float fq = 1.0, am = 0.5;
+  for(int i = 0; i < 9; i++)
+  {
+    if(i >= oct) break;
+    v += nse3d(p * fq + mtn * fq) * am;
+    fq *= 2.0;
+    am *= 0.5;
+  }
+  return v;
+}
+
+float density(vec3 p, int oct)
+{
+  vec2 pol = vec2(atan(p.y, p.x), length(p.yx));
+  float v = fbmCloud(p, oct);
+  float fo = (pol.y - 1.5);
+  v *= exp(fo * fo * -5.0);
+  float edg = 0.3;
+  return smoothstep(edg, edg + 0.1, v);
+}
+
+void main()
+{
+  vec2 fragCoord = vUv * iResolution;
+  vec2 uv = fragCoord.xy / iResolution.xy;
+  uv = 2.0 * uv - 1.0;
+  uv.x *= iResolution.x / iResolution.y;
+
+  float camtm = iTime * 0.15;
+  vec3 ro = vec3(cos(camtm), 0.0, camtm);
+  vec3 rd = normalize(vec3(uv, 1.2));
+  rd.xz = rotate(rd.xz, sin(camtm) * 0.4);
+  rd.yz = rotate(rd.yz, sin(camtm * 1.3) * 0.4);
+
+  float sd = sin(fragCoord.x * 0.01 + fragCoord.y * 3.333333333 + iTime) * 1298729.146861;
+  vec3 col;
+  float dacc = 0.0, lacc = 0.0;
+  vec3 light = vec3(cos(iTime * 8.0) * 0.5, sin(iTime * 4.0) * 0.5, ro.z + 4.0 + sin(iTime));
+
+  ITSC tunRef;
+  const int STP = 15;
+  float densA = 1.0;
+  float densB = 2.0;
+  for(int i = 0; i < STP; i++)
+  {
+    ITSC itsc = raycylh(ro, rd, vec3(0.0), densB + float(i) * (densA - densB) / float(STP) + fract(sd) * 0.07);
+    float d = density(itsc.p, 6);
+    vec3 tol = light - itsc.p;
+    float dtol = length(tol);
+    tol = tol * 0.1 / dtol;
+    float dl = density(itsc.p + tol, 6);
+    lacc += max(d - dl, 0.0) * exp(dtol * -0.2);
+    dacc += d;
+    tunRef = itsc;
+  }
+  dacc /= float(STP);
+  ITSC itsc = raycylh(ro, rd, vec3(0.0), 4.0);
+  vec3 sky = vec3(0.6, 0.3, 0.2);
+  sky *= 0.9 * pow(density(itsc.p, 9), 2.0);
+  lacc = max(lacc * 0.3 + 0.3, 0.0);
+  vec3 cloud = pow(vec3(lacc), vec3(0.7, 1.0, 1.0));
+  col = mix(sky, cloud, dacc);
+  col *= exp(tunRef.dist * -0.1);
+  col = pow(col, vec3(1.0, 0.8, 0.5) * 1.5) * 1.5;
+  col = pow(col, vec3(1.0 / 2.2));
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1 }) {
   const materialRef = useRef(null);
   const meshRef = useRef(null);
+  const opacityRef = useRef(targetOpacity);
   const { camera, size } = useThree();
 
   const uniforms = useMemo(
@@ -48,7 +294,7 @@ function FlappyBackgroundShader() {
     uniforms.iResolution.value = [size.width, size.height];
   }, [size.height, size.width, uniforms]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (meshRef.current) {
       meshRef.current.position.copy(camera.position);
     }
@@ -56,15 +302,46 @@ function FlappyBackgroundShader() {
       return;
     }
     materialRef.current.uniforms.iTime.value = state.clock.elapsedTime;
+    const nextOpacity = opacityRef.current + (targetOpacity - opacityRef.current) * Math.min(1, delta * 9);
+    opacityRef.current = nextOpacity;
+    materialRef.current.opacity = nextOpacity;
   });
 
+  if (variant === 'deployer' || variant === 'thosmur') {
+    return (
+      <mesh ref={meshRef} key={`flappy-bg-${variant}`}>
+        <sphereGeometry args={[120, 48, 32]} />
+        <shaderMaterial
+          key={`flappy-bg-material-${variant}`}
+          ref={materialRef}
+          uniforms={uniforms}
+          side={BackSide}
+          transparent
+          opacity={targetOpacity}
+          depthWrite={false}
+          vertexShader={`
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `}
+          fragmentShader={variant === 'deployer' ? DEPLOYER_BACKGROUND_SHADER : THOSMUR_BACKGROUND_SHADER}
+        />
+      </mesh>
+    );
+  }
+
   return (
-    <mesh ref={meshRef}>
+    <mesh ref={meshRef} key={`flappy-bg-${variant}`}>
       <sphereGeometry args={[120, 48, 32]} />
       <shaderMaterial
+        key={`flappy-bg-material-${variant}`}
         ref={materialRef}
         uniforms={uniforms}
         side={BackSide}
+        transparent
+        opacity={targetOpacity}
         depthWrite={false}
         vertexShader={`
           varying vec2 vUv;
@@ -450,6 +727,52 @@ function SpeedTrails({ birdXRef, birdYRef, birdZRef, velocityRef, phaseRef, flig
   );
 }
 
+function SelectorArrow({ position, direction = 'left', onSelect }) {
+  return (
+    <group
+      position={position}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onSelect();
+      }}
+    >
+      <mesh rotation={[0, 0, direction === 'left' ? Math.PI / 2 : -Math.PI / 2]}>
+        <coneGeometry args={[0.28, 0.62, 3]} />
+        <meshStandardMaterial color="#fedb48" emissive="#f59e0b" emissiveIntensity={0.35} />
+      </mesh>
+      <mesh>
+        <boxGeometry args={[0.95, 1.05, 0.95]} />
+        <meshBasicMaterial transparent opacity={0} colorWrite={false} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function CharacterSelector({ visible, isMobile = false, onPrev, onNext }) {
+  if (!visible) {
+    return null;
+  }
+
+  const offsetX = isMobile ? 2.15 : 2.9;
+
+  return (
+    <group>
+      <SelectorArrow position={[-offsetX, 0.05, 0]} direction="left" onSelect={onPrev} />
+      <SelectorArrow position={[offsetX, 0.05, 0]} direction="right" onSelect={onNext} />
+    </group>
+  );
+}
+
+function CharacterModelFallback({ x, y, z }) {
+  const { progress } = useProgress();
+
+  return (
+    <Html center position={[x, y, z]}>
+      <div className="model-loader-card">Loading Character: {Math.round(progress)}%</div>
+    </Html>
+  );
+}
+
 export function FlappyCameraRig({
   phase,
   isMobile,
@@ -516,11 +839,14 @@ export default function FlappyGameScene({
   setPhase,
   score,
   setScore,
+  isMobile = false,
   flightMode = 'normal',
   setFlightMode,
   cameraMode = 'default',
   setCameraMode,
 }) {
+  const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
+  const [previousCharacterIndex, setPreviousCharacterIndex] = useState(null);
   const [birdY, setBirdY] = useState(INTRO_BIRD_Y);
   const [birdX, setBirdX] = useState(INTRO_BIRD_X);
   const [birdZ, setBirdZ] = useState(INTRO_BIRD_Z);
@@ -544,6 +870,8 @@ export default function FlappyGameScene({
   const specialSpawnCountdownRef = useRef(SPECIAL_SPAWN_MIN_PIPES);
   const lastEffectTypeRef = useRef(null);
   const modeSwitchSafeRef = useRef(0);
+  const suppressNextActionRef = useRef(false);
+  const characterTransitionTimerRef = useRef(null);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -560,6 +888,15 @@ export default function FlappyGameScene({
   useEffect(() => {
     cameraModeRef.current = cameraMode;
   }, [cameraMode]);
+
+  useEffect(
+    () => () => {
+      if (characterTransitionTimerRef.current) {
+        clearTimeout(characterTransitionTimerRef.current);
+      }
+    },
+    []
+  );
 
   const randomSpecialCountdown = useCallback(
     () => SPECIAL_SPAWN_MIN_PIPES + Math.floor(Math.random() * (SPECIAL_SPAWN_MAX_PIPES - SPECIAL_SPAWN_MIN_PIPES + 1)),
@@ -643,6 +980,11 @@ export default function FlappyGameScene({
   }, []);
 
   const onAction = useCallback(() => {
+    if (suppressNextActionRef.current) {
+      suppressNextActionRef.current = false;
+      return;
+    }
+
     if (phaseRef.current === 'ready') {
       startProgressRef.current = 0;
       setPhase('starting');
@@ -670,6 +1012,10 @@ export default function FlappyGameScene({
     };
 
     const onPointerDown = () => {
+      if (suppressNextActionRef.current) {
+        suppressNextActionRef.current = false;
+        return;
+      }
       onAction();
     };
 
@@ -681,6 +1027,44 @@ export default function FlappyGameScene({
       window.removeEventListener('pointerdown', onPointerDown);
     };
   }, [onAction]);
+
+  const switchCharacter = useCallback((step) => {
+    if (phaseRef.current === 'playing' || phaseRef.current === 'starting') {
+      return;
+    }
+    suppressNextActionRef.current = true;
+    setActiveCharacterIndex((current) => {
+      const next = (current + step + FLAPPY_CHARACTERS.length) % FLAPPY_CHARACTERS.length;
+      if (next === current) {
+        return current;
+      }
+
+      setPreviousCharacterIndex(current);
+      if (characterTransitionTimerRef.current) {
+        clearTimeout(characterTransitionTimerRef.current);
+      }
+      characterTransitionTimerRef.current = setTimeout(() => {
+        setPreviousCharacterIndex(null);
+        characterTransitionTimerRef.current = null;
+      }, CHARACTER_TRANSITION_MS);
+      return next;
+    });
+  }, []);
+
+  const activeCharacter = FLAPPY_CHARACTERS[activeCharacterIndex];
+  const previousCharacter = previousCharacterIndex !== null ? FLAPPY_CHARACTERS[previousCharacterIndex] : null;
+  const getPhaseCharacterRotation = useCallback(
+    (character) => {
+      if (!character) {
+        return 0;
+      }
+      if (character.id === 'thosmur' && phase === 'playing') {
+        return (character.rotationOffsetY ?? 0) + Math.PI / 2;
+      }
+      return character.rotationOffsetY ?? 0;
+    },
+    [phase]
+  );
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 1 / 30);
@@ -838,7 +1222,8 @@ export default function FlappyGameScene({
 
   return (
     <group>
-      <FlappyBackgroundShader />
+      {previousCharacter && <FlappyBackgroundShader variant={previousCharacter.id} targetOpacity={0} />}
+      <FlappyBackgroundShader variant={activeCharacter.id} targetOpacity={1} />
       <ambientLight intensity={1.1} />
       <directionalLight position={[5, 6, 4]} intensity={1.4} />
       <World />
@@ -855,13 +1240,47 @@ export default function FlappyGameScene({
           flightModeRef={flightModeRef}
         />
       )}
-      <Bird
-        x={birdX}
-        y={birdY}
-        z={birdZ}
-        phase={phase}
-        rotationY={phase === 'playing' || phase === 'starting' ? (flightMode === 'reverse' ? Math.PI : 0) : null}
+      <CharacterSelector
+        visible={phase === 'ready' || phase === 'gameover'}
+        isMobile={isMobile}
+        onPrev={() => switchCharacter(-1)}
+        onNext={() => switchCharacter(1)}
       />
+      {previousCharacter && (
+        <Html center position={[0, isMobile ? 2.2 : 2.6, 0]}>
+          <div className="model-loader-card">Switching character...</div>
+        </Html>
+      )}
+      {previousCharacter && (
+        <Suspense fallback={null}>
+          <Bird
+            x={birdX}
+            y={birdY}
+            z={birdZ}
+            phase={phase}
+            modelPath={previousCharacter.path}
+            animationMap={previousCharacter.animationMap}
+            positionOffset={previousCharacter.positionOffset}
+            rotationOffsetY={getPhaseCharacterRotation(previousCharacter)}
+            targetOpacity={0}
+            rotationY={phase === 'playing' || phase === 'starting' ? (flightMode === 'reverse' ? Math.PI : 0) : null}
+          />
+        </Suspense>
+      )}
+      <Suspense fallback={<CharacterModelFallback x={birdX} y={birdY} z={birdZ} />}>
+        <Bird
+          x={birdX}
+          y={birdY}
+          z={birdZ}
+          phase={phase}
+          modelPath={activeCharacter.path}
+          animationMap={activeCharacter.animationMap}
+          positionOffset={activeCharacter.positionOffset}
+          rotationOffsetY={getPhaseCharacterRotation(activeCharacter)}
+          targetOpacity={1}
+          rotationY={phase === 'playing' || phase === 'starting' ? (flightMode === 'reverse' ? Math.PI : 0) : null}
+        />
+      </Suspense>
     </group>
   );
 }

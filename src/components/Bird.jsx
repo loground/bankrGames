@@ -12,7 +12,11 @@ export default function Bird({
   z,
   phase,
   modelPath = '/3d/bankr3_opt.glb',
+  animationMap = null,
   clipOverride = null,
+  positionOffset = null,
+  rotationOffsetY = 0,
+  targetOpacity = 1,
   rotationY = null,
   rotationX = null,
 }) {
@@ -30,6 +34,8 @@ export default function Bird({
 
   const mixerRef = useRef(null);
   const actionRef = useRef(null);
+  const materialsRef = useRef([]);
+  const opacityRef = useRef(targetOpacity);
 
   const { model, modelScale } = useMemo(() => {
     const cloned = clone(gltf.scene);
@@ -45,6 +51,33 @@ export default function Bird({
       modelScale: 1.7 / maxDimension,
     };
   }, [gltf.scene]);
+
+  useEffect(() => {
+    const nextMaterials = [];
+    model.traverse((node) => {
+      if (!node.isMesh || !node.material) {
+        return;
+      }
+
+      const source = Array.isArray(node.material) ? node.material : [node.material];
+      const clonedMaterials = source.map((material) => {
+        const nextMaterial = material.clone();
+        nextMaterial.transparent = true;
+        nextMaterial.opacity = opacityRef.current;
+        nextMaterials.push(nextMaterial);
+        return nextMaterial;
+      });
+
+      node.material = Array.isArray(node.material) ? clonedMaterials : clonedMaterials[0];
+    });
+
+    materialsRef.current = nextMaterials;
+
+    return () => {
+      materialsRef.current.forEach((material) => material.dispose());
+      materialsRef.current = [];
+    };
+  }, [model]);
 
   const playClip = useCallback(
     (index, loopMode, repetitions, clampWhenFinished) => {
@@ -92,36 +125,58 @@ export default function Bird({
       return;
     }
 
+    const readyClip = animationMap?.ready ?? 0;
+    const playingClip = animationMap?.playing ?? 2;
+    const gameoverClip = animationMap?.gameover ?? 1;
+
     if (phase === 'ready') {
-      playClip(0, LoopRepeat, Infinity, false);
+      playClip(readyClip, LoopRepeat, Infinity, false);
       return;
     }
 
     if (phase === 'starting' || phase === 'playing') {
-      playClip(2, LoopRepeat, Infinity, false);
+      playClip(playingClip, LoopRepeat, Infinity, false);
       return;
     }
 
     if (phase === 'gameover') {
-      playClip(1, LoopOnce, 1, true);
+      playClip(gameoverClip, LoopOnce, 1, true);
     }
-  }, [clipOverride, gltf.animations.length, phase, playClip]);
+  }, [animationMap, clipOverride, gltf.animations.length, phase, playClip]);
 
   useFrame((_, delta) => {
     if (mixerRef.current) {
       mixerRef.current.update(delta);
+    }
+
+    const nextOpacity = opacityRef.current + (targetOpacity - opacityRef.current) * Math.min(1, delta * 12);
+    if (Math.abs(nextOpacity - opacityRef.current) > 0.001) {
+      opacityRef.current = nextOpacity;
+      for (let i = 0; i < materialsRef.current.length; i += 1) {
+        materialsRef.current[i].opacity = nextOpacity;
+      }
+    } else if (opacityRef.current !== targetOpacity) {
+      opacityRef.current = targetOpacity;
+      for (let i = 0; i < materialsRef.current.length; i += 1) {
+        materialsRef.current[i].opacity = targetOpacity;
+      }
     }
   });
 
   const baseRotation = phase === 'ready' ? [0, -Math.PI / 2, 0] : [0, 0, 0];
   const modelRotation = [
     rotationX !== null ? rotationX : baseRotation[0],
-    rotationY !== null ? rotationY : baseRotation[1],
+    (rotationY !== null ? rotationY : baseRotation[1]) + rotationOffsetY,
     baseRotation[2],
+  ];
+  const modelPosition = [
+    x + (positionOffset?.[0] ?? 0),
+    y + (positionOffset?.[1] ?? 0),
+    z + (positionOffset?.[2] ?? 0),
   ];
 
   return (
-    <group position={[x, y, z]} rotation={modelRotation} scale={[modelScale, modelScale, modelScale]}>
+    <group position={modelPosition} rotation={modelRotation} scale={[modelScale, modelScale, modelScale]}>
       <primitive object={model} />
     </group>
   );

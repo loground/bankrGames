@@ -603,6 +603,7 @@ export default function App() {
                 setPhase={setPhase}
                 score={score}
                 setScore={setScore}
+                isMobile={isMobile}
                 flightMode={flappyFlightMode}
                 setFlightMode={setFlappyFlightMode}
                 cameraMode={flappyCameraMode}
