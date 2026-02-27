@@ -21,12 +21,12 @@ export default function GridHoverBackground() {
 
   const handleMouseEnter = (index) => {
     const id = `#hover-square-${index}`;
-    animate(id, { backgroundColor: '#FEDB48' }, { duration: 0.15 });
+    animate(id, { backgroundColor: '#2B2B2B' }, { duration: 0.15 });
   };
 
   const handleMouseLeave = (index) => {
     const id = `#hover-square-${index}`;
-    animate(id, { backgroundColor: 'rgba(254, 219, 72, 0)' }, { duration: 1.2 });
+    animate(id, { backgroundColor: 'rgba(43, 43, 43, 0)' }, { duration: 1.2 });
   };
 
   return (

@@ -7,10 +7,12 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
-function ArcadeModel() {
+const ARCADE_MODEL_PATH = '/3d/arcades/arcade3.glb';
+
+function ArcadeModel({ modelPath }) {
   const { gl } = useThree();
   const groupRef = useRef(null);
-  const gltf = useLoader(GLTFLoader, '/3d/bankrArcade.glb', (loader) => {
+  const gltf = useLoader(GLTFLoader, modelPath, (loader) => {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('/draco/');
     loader.setDRACOLoader(dracoLoader);
@@ -138,8 +140,8 @@ export default function MainMenuScene({ isMobile }) {
     <group>
       <MainMenuCameraRig isMobile={isMobile} />
       <Environment preset="sunset" />
-      <Suspense fallback={<ArcadeModelFallback />}>
-        <ArcadeModel />
+      <Suspense fallback={<ArcadeModelFallback />} key={ARCADE_MODEL_PATH}>
+        <ArcadeModel modelPath={ARCADE_MODEL_PATH} />
       </Suspense>
     </group>
   );

@@ -502,7 +502,6 @@ export default function App() {
           </Suspense>
 
           <div className="selection-screen">
-            <div className="selection-disclaimer">not affilated with official bankr bot project or token</div>
             <img className="selection-top-image" src="/bgMainPage.png" alt="Main page banner" />
             <div className="selection-title">Select game</div>
             <button
