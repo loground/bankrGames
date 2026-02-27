@@ -34,6 +34,7 @@ const FLAPPY_CHARACTERS = [
   { id: 'bankr', path: '/3d/bankr3_opt.glb', animationMap: { ready: 0, playing: 2, gameover: 1 }, positionOffset: [0, 0, 0], rotationOffsetY: 0 },
   { id: 'deployer', path: '/3d/flappy/deployer.glb', animationMap: { ready: 2, playing: 1, gameover: 0 }, positionOffset: [-0.2, 0, 0], rotationOffsetY: 0 },
   { id: 'thosmur', path: '/3d/flappy/thosmur.glb', animationMap: { ready: 1, starting: 1, playing: 0, gameover: 2 }, positionOffset: [0, 0, 0], rotationOffsetY: -Math.PI / 2 },
+  { id: 'bankrella', path: '/3d/monitorHead.glb', animationMap: { ready: 2, starting: 0, playing: 0, gameover: 1 }, positionOffset: [0, 0, 0], rotationOffsetY: 0 },
 ];
 const CHARACTER_TRANSITION_MS = 220;
 
@@ -163,6 +164,62 @@ void main()
 }
 `;
 
+const BANKRELLA_BACKGROUND_SHADER = `
+precision highp float;
+varying vec2 vUv;
+uniform float iTime;
+uniform vec2 iResolution;
+
+vec2 noise(vec2 p) {
+    return fract(1234.1234 * sin(1234.1234 * (fract(1234.1234 * p) + p.yx)));
+}
+
+float heart(vec2 p, float s) {
+    p /= s;
+    vec2 q = p;
+    q.x *= 0.5 + .5 * q.y;
+    q.y -= abs(p.x) * .63;
+    return (length(q) - .7) * s;
+}
+
+vec3 hearts(vec2 polar, float time, float fft) {
+    float l = clamp(polar.y, 0., 1.);
+    float tiling = 1.0/3.14159 * 14.0;
+    polar.y -= time;
+    vec2 polarID = floor(polar * tiling);
+
+    polar.x = polar.x + polarID.y * .03;
+    polar.x = mod(polar.x + 3.14159 * 2.0, 3.14159 * 2.0);
+    polarID = floor(polar * tiling);
+
+    polar = fract(polar * tiling);
+    polar = polar * 2.0 - 1.0;
+
+    vec2 n = noise(polarID + .1) * .75 + .25;
+    vec2 n2 = 2.0 * noise(polarID) - 1.0;
+    vec2 offset = (1.0 - n.y) * n2;
+    float heartDist = heart(polar + offset, n.y * .6);
+    float a = smoothstep(.0, .25, n.x*n.x);
+    float heartGlow = smoothstep(0.0, -.05, heartDist) * .5 * a + smoothstep(0.3, -.4, heartDist) * .75;
+    vec3 heartCol = vec3(smoothstep(0.0, -.05, heartDist), 0.0, 0.0) * a + heartGlow * vec3(.9, .5, .7);
+    vec3 bgCol = vec3(0.15 + l / 2.0, .0, 0.0);
+    return bgCol * (.5 + fft) + heartCol * step(0.45, noise(polarID + .4).x);
+}
+
+void main() {
+    vec2 fragCoord = vUv * iResolution;
+    vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;
+    vec2 polar = vec2(atan(uv.y, uv.x), log(length(uv) + 1e-4));
+    float speed = .666;
+    float fft = 0.35 + 0.2 * sin(iTime * 1.8);
+    vec3 h = max(
+      max(hearts(polar, iTime * speed, fft), hearts(polar, iTime * speed * 0.3 + 3.0, fft)),
+      hearts(polar, iTime * speed * .2 + 5.0, fft)
+    );
+    gl_FragColor = vec4(h, 1.0);
+}
+`;
+
 function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1 }) {
   const materialRef = useRef(null);
   const meshRef = useRef(null);
@@ -194,7 +251,7 @@ function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1 }) {
     materialRef.current.opacity = nextOpacity;
   });
 
-  if (variant === 'deployer' || variant === 'thosmur') {
+  if (variant === 'deployer' || variant === 'thosmur' || variant === 'bankrella') {
     return (
       <mesh ref={meshRef} key={`flappy-bg-${variant}`}>
         <sphereGeometry args={[120, 48, 32]} />
@@ -213,7 +270,13 @@ function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1 }) {
               gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
           `}
-          fragmentShader={variant === 'deployer' ? DEPLOYER_BACKGROUND_SHADER : THOSMUR_BACKGROUND_SHADER}
+          fragmentShader={
+            variant === 'deployer'
+              ? DEPLOYER_BACKGROUND_SHADER
+              : variant === 'thosmur'
+                ? THOSMUR_BACKGROUND_SHADER
+                : BANKRELLA_BACKGROUND_SHADER
+          }
         />
       </mesh>
     );

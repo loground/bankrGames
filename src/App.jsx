@@ -7,7 +7,14 @@ import MainMenuScene from './scenes/MainMenuScene';
 import MinerScene from './scenes/MinerScene';
 
 const LEADERBOARD_LIMIT = 10;
-const FLAPPY_CHARACTER_IDS = new Set(['bankr', 'deployer', 'thosmur']);
+const FLAPPY_CHARACTER_IDS = new Set(['bankr', 'deployer', 'thosmur', 'bankrella', 'bnkrella']);
+const FLAPPY_MODEL_LABEL = {
+  bankr: 'bankr',
+  deployer: 'deployer',
+  thosmur: 'thosmur',
+  bankrella: 'bnkrella',
+  bnkrella: 'bnkrella',
+};
 const FLAPPY_LEADERBOARD_API_BASE =
   import.meta.env.VITE_FLAPPY_LEADERBOARD_API_BASE || 'https://pqggazplaokncvkhbmaf.supabase.co';
 const FLAPPY_LEADERBOARD_API_TOKEN =
@@ -74,13 +81,13 @@ function insertOrUpdatePlayer(players, name, score, model) {
     }
     found = true;
     if (score > entry.score) {
-      return { name: entry.name, score, model, createdAt: Date.now() };
+      return { name: entry.name, score, model: FLAPPY_MODEL_LABEL[model] || model, createdAt: Date.now() };
     }
     return entry;
   });
 
   if (!found) {
-    next.push({ name: name.trim().slice(0, 14) || 'PLAYER', score, model, createdAt: Date.now() });
+    next.push({ name: name.trim().slice(0, 14) || 'PLAYER', score, model: FLAPPY_MODEL_LABEL[model] || model, createdAt: Date.now() });
   }
 
   return normalizePlayers(next);
@@ -120,7 +127,7 @@ async function submitRemotePlayer(name, score, model) {
     body: JSON.stringify({
       p_name: name,
       p_score: score,
-      p_model: model,
+      p_model: FLAPPY_MODEL_LABEL[model] || model,
     }),
   });
   if (!response.ok) {
@@ -840,14 +847,14 @@ export default function App() {
             {phase === 'gameover' && (
               <div className="gameover-score gameover-leaderboard">
                 <div>Your Score: {score}</div>
-                {lastSavedScore === score && <div className="gameover-saved">Saved to Top 10 ({lastSavedModel})</div>}
+                {lastSavedScore === score && <div className="gameover-saved">Saved to Top 10 ({FLAPPY_MODEL_LABEL[lastSavedModel] || lastSavedModel})</div>}
                 <div className="leaderboard-title">Top 10</div>
                 {leaderboardError && <div className="leaderboard-empty">{leaderboardError}</div>}
                 {flappyLeaderboard.length === 0 && <div className="leaderboard-empty">No scores yet</div>}
                 {flappyLeaderboard.map((entry, index) => (
                   <div key={`${entry.createdAt}-${entry.name}-${entry.score}`} className="leaderboard-row">
                     <span>{index + 1}.</span>
-                    <span>{entry.name} [{entry.model}]</span>
+                    <span>{entry.name} [{FLAPPY_MODEL_LABEL[entry.model] || entry.model}]</span>
                     <span>{entry.score}</span>
                   </div>
                 ))}
@@ -859,7 +866,7 @@ export default function App() {
             <div className="miner-disclaimer-overlay" onPointerDown={(event) => event.stopPropagation()}>
               <div className="miner-disclaimer-card">
                 <div className="miner-disclaimer-text">New Top 10 score: {pendingLeaderboardScore}</div>
-                <div className="miner-disclaimer-text">Character: {pendingLeaderboardModel}</div>
+                <div className="miner-disclaimer-text">Character: {FLAPPY_MODEL_LABEL[pendingLeaderboardModel] || pendingLeaderboardModel}</div>
                 <div className="miner-disclaimer-text">Enter your name</div>
                 <input
                   className="leaderboard-input"
@@ -886,7 +893,7 @@ export default function App() {
                 {flappyLeaderboard.map((entry, index) => (
                   <div key={`${entry.createdAt}-${entry.name}-${entry.score}`} className="leaderboard-row">
                     <span>{index + 1}.</span>
-                    <span>{entry.name} [{entry.model}]</span>
+                    <span>{entry.name} [{FLAPPY_MODEL_LABEL[entry.model] || entry.model}]</span>
                     <span>{entry.score}</span>
                   </div>
                 ))}
