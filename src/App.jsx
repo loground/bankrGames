@@ -6,6 +6,7 @@ import FlappyGameScene, { FlappyCameraRig } from './scenes/FlappyScene';
 import MainMenuScene from './scenes/MainMenuScene';
 import MinerScene from './scenes/MinerScene';
 
+const SCENE_TRANSITION_MS = 320;
 const LEADERBOARD_LIMIT = 10;
 const FLAPPY_CHARACTER_IDS = new Set(['bankr', 'deployer', 'thosmur', 'bankrella', 'bnkrella']);
 const FLAPPY_MODEL_LABEL = {
@@ -147,8 +148,21 @@ function normalizeLeaderboard(entries) {
     });
 }
 
+function tryPlayAudio(audio, onSuccess, onFail) {
+  if (!audio) {
+    return;
+  }
+  const playPromise = audio.play();
+  if (playPromise && typeof playPromise.then === 'function') {
+    playPromise.then(onSuccess).catch(onFail);
+    return;
+  }
+  onSuccess();
+}
+
 export default function App() {
   const [selectedGame, setSelectedGame] = useState(null);
+  const [isSceneTransitioning, setIsSceneTransitioning] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
   const menuMusicRef = useRef(null);
   const flappyMusicRef = useRef(null);
@@ -179,6 +193,15 @@ export default function App() {
     normal: { backOffset: 1.25, lookAhead: 3.4, targetY: 1, targetZ: 1.15, fov: 110 },
     reverse: { backOffset: 1.25, lookAhead: 3.4, targetY: 1, targetZ: 1.15, fov: 110 },
   }), []);
+
+  useEffect(() => {
+    setIsSceneTransitioning(true);
+    const timer = setTimeout(() => {
+      setIsSceneTransitioning(false);
+    }, SCENE_TRANSITION_MS);
+
+    return () => clearTimeout(timer);
+  }, [selectedGame]);
 
   useEffect(() => {
     try {
@@ -347,19 +370,10 @@ export default function App() {
 
   const playMenuMusic = () => {
     const audio = menuMusicRef.current;
-    if (!audio) {
-      return;
-    }
-
     setIsMenuMusicEnabled(true);
     setIsFlappyMusicEnabled(false);
     setIsMinerMusicEnabled(false);
-    const playPromise = audio.play();
-    if (playPromise && typeof playPromise.then === 'function') {
-      playPromise.then(() => setIsMenuMusicPlaying(true)).catch(() => setIsMenuMusicPlaying(false));
-    } else {
-      setIsMenuMusicPlaying(true);
-    }
+    tryPlayAudio(audio, () => setIsMenuMusicPlaying(true), () => setIsMenuMusicPlaying(false));
   };
 
   const stopMenuMusic = () => {
@@ -380,19 +394,10 @@ export default function App() {
 
   const playFlappyMusic = () => {
     const audio = flappyMusicRef.current;
-    if (!audio) {
-      return;
-    }
-
     setIsMenuMusicEnabled(false);
     setIsFlappyMusicEnabled(true);
     setIsMinerMusicEnabled(false);
-    const playPromise = audio.play();
-    if (playPromise && typeof playPromise.then === 'function') {
-      playPromise.then(() => setIsFlappyMusicPlaying(true)).catch(() => setIsFlappyMusicPlaying(false));
-    } else {
-      setIsFlappyMusicPlaying(true);
-    }
+    tryPlayAudio(audio, () => setIsFlappyMusicPlaying(true), () => setIsFlappyMusicPlaying(false));
   };
 
   const stopFlappyMusic = () => {
@@ -413,19 +418,10 @@ export default function App() {
 
   const playMinerMusic = () => {
     const audio = minerMusicRef.current;
-    if (!audio) {
-      return;
-    }
-
     setIsMenuMusicEnabled(false);
     setIsFlappyMusicEnabled(false);
     setIsMinerMusicEnabled(true);
-    const playPromise = audio.play();
-    if (playPromise && typeof playPromise.then === 'function') {
-      playPromise.then(() => setIsMinerMusicPlaying(true)).catch(() => setIsMinerMusicPlaying(false));
-    } else {
-      setIsMinerMusicPlaying(true);
-    }
+    tryPlayAudio(audio, () => setIsMinerMusicPlaying(true), () => setIsMinerMusicPlaying(false));
   };
 
   const stopMinerMusic = () => {
@@ -487,6 +483,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className={`scene-transition ${isSceneTransitioning ? 'scene-transition-active' : ''}`} />
       {selectedGame === null && (
         <>
           <GridHoverBackground />

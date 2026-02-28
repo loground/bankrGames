@@ -27,6 +27,20 @@ body,
   background: #835dea;
 }
 
+.scene-transition {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.24));
+  transition: opacity 0.32s ease;
+}
+
+.scene-transition-active {
+  opacity: 1;
+}
+
 .main-menu-canvas {
   position: absolute !important;
   inset: 0;
