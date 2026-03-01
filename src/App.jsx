@@ -273,7 +273,7 @@ export default function App() {
   }, [phase]);
 
   useEffect(() => {
-    const audio = new Audio('/mainSong.mp3');
+    const audio = new Audio('/music/mainSong2.mp3');
     audio.loop = true;
     audio.volume = 0.45;
     menuMusicRef.current = audio;
@@ -285,7 +285,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio('/flappySong.mp3');
+    const audio = new Audio('/music/flappySong.mp3');
     audio.loop = true;
     audio.volume = 0.45;
     flappyMusicRef.current = audio;
@@ -297,7 +297,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio('/minerSong.mp3');
+    const audio = new Audio('/music/minerSong.mp3');
     audio.loop = true;
     audio.volume = 0.45;
     minerMusicRef.current = audio;
