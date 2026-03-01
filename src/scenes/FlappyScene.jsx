@@ -220,7 +220,7 @@ void main() {
 }
 `;
 
-function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1, slideX = 0 }) {
+function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1, slideX = 0, seamRotationY = 0 }) {
   const materialRef = useRef(null);
   const meshRef = useRef(null);
   const opacityRef = useRef(targetOpacity);
@@ -242,6 +242,7 @@ function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1, slideX =
     if (meshRef.current) {
       meshRef.current.position.copy(camera.position);
       meshRef.current.position.x += slideX;
+      meshRef.current.rotation.set(0, seamRotationY, 0);
     }
     if (!materialRef.current) {
       return;
@@ -1178,13 +1179,24 @@ export default function FlappyGameScene({
   const isCharacterTransitioning = previousCharacter !== null && characterTransitionProgress < 1;
   const outgoingSlideX = isCharacterTransitioning ? -characterTransitionDirection * characterTransitionProgress * sceneSlideDistance : 0;
   const incomingSlideX = isCharacterTransitioning ? characterTransitionDirection * (1 - characterTransitionProgress) * sceneSlideDistance : 0;
+  const backgroundSeamRotationY = cameraMode === 'pov' && phase === 'playing' && flightMode === 'reverse' ? Math.PI * 0.5 : 0;
 
   return (
     <group>
       {previousCharacter && (
-        <FlappyBackgroundShader variant={previousCharacter.id} targetOpacity={0} slideX={outgoingSlideX} />
+        <FlappyBackgroundShader
+          variant={previousCharacter.id}
+          targetOpacity={0}
+          slideX={outgoingSlideX}
+          seamRotationY={backgroundSeamRotationY}
+        />
       )}
-      <FlappyBackgroundShader variant={activeCharacter.id} targetOpacity={1} slideX={incomingSlideX} />
+      <FlappyBackgroundShader
+        variant={activeCharacter.id}
+        targetOpacity={1}
+        slideX={incomingSlideX}
+        seamRotationY={backgroundSeamRotationY}
+      />
       <ambientLight intensity={1.1} />
       <directionalLight position={[5, 6, 4]} intensity={1.4} />
       <World />

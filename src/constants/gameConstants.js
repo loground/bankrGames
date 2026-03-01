@@ -9,8 +9,8 @@ export const STARTING_DURATION = 1.25;
 
 export const PIPE_SPEED = 2.2;
 export const PIPE_WIDTH = 1.2;
-export const PIPE_GAP = 3;
-export const PIPE_SPAWN_SECONDS = 1.65;
+export const PIPE_GAP = 2.75;
+export const PIPE_SPAWN_SECONDS = 1.5;
 export const PIPE_START_X = 9;
 export const PIPE_DESPAWN_X = -10;
 
@@ -43,7 +43,7 @@ export function getCrossySpeedMultiplier(level) {
 
 export function getPipeSpeedForScore(score) {
   const level = Math.floor(score / 10);
-  return (PIPE_SPEED + level * 0.45) * 1.1;
+  return (PIPE_SPEED + level * 0.45) * 1.45;
 }
 
 export function randGapY() {
