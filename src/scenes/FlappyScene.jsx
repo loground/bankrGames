@@ -36,7 +36,7 @@ const FLAPPY_CHARACTERS = [
   { id: 'thosmur', path: '/3d/flappy/thosmur.glb', animationMap: { ready: 1, starting: 1, playing: 0, gameover: 2 }, positionOffset: [0, 0, 0], rotationOffsetY: -Math.PI / 2 },
   { id: 'bankrella', path: '/3d/monitorHead.glb', animationMap: { ready: 2, starting: 0, playing: 0, gameover: 1 }, positionOffset: [0, 0, 0], rotationOffsetY: 0 },
 ];
-const CHARACTER_TRANSITION_MS = 220;
+const CHARACTER_TRANSITION_MS = 320;
 
 FLAPPY_CHARACTERS.forEach((character) => {
   useGLTF.preload(character.path);
@@ -220,7 +220,7 @@ void main() {
 }
 `;
 
-function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1 }) {
+function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1, slideX = 0 }) {
   const materialRef = useRef(null);
   const meshRef = useRef(null);
   const opacityRef = useRef(targetOpacity);
@@ -241,6 +241,7 @@ function FlappyBackgroundShader({ variant = 'bankr', targetOpacity = 1 }) {
   useFrame((state, delta) => {
     if (meshRef.current) {
       meshRef.current.position.copy(camera.position);
+      meshRef.current.position.x += slideX;
     }
     if (!materialRef.current) {
       return;
@@ -798,6 +799,8 @@ export default function FlappyGameScene({
 }) {
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
   const [previousCharacterIndex, setPreviousCharacterIndex] = useState(null);
+  const [characterTransitionProgress, setCharacterTransitionProgress] = useState(1);
+  const [characterTransitionDirection, setCharacterTransitionDirection] = useState(0);
   const [birdY, setBirdY] = useState(INTRO_BIRD_Y);
   const [birdX, setBirdX] = useState(INTRO_BIRD_X);
   const [birdZ, setBirdZ] = useState(INTRO_BIRD_Z);
@@ -822,7 +825,6 @@ export default function FlappyGameScene({
   const lastEffectTypeRef = useRef(null);
   const modeSwitchSafeRef = useRef(0);
   const suppressNextActionRef = useRef(false);
-  const characterTransitionTimerRef = useRef(null);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -839,15 +841,6 @@ export default function FlappyGameScene({
   useEffect(() => {
     cameraModeRef.current = cameraMode;
   }, [cameraMode]);
-
-  useEffect(
-    () => () => {
-      if (characterTransitionTimerRef.current) {
-        clearTimeout(characterTransitionTimerRef.current);
-      }
-    },
-    []
-  );
 
   const randomSpecialCountdown = useCallback(
     () => SPECIAL_SPAWN_MIN_PIPES + Math.floor(Math.random() * (SPECIAL_SPAWN_MAX_PIPES - SPECIAL_SPAWN_MIN_PIPES + 1)),
@@ -991,13 +984,8 @@ export default function FlappyGameScene({
       }
 
       setPreviousCharacterIndex(current);
-      if (characterTransitionTimerRef.current) {
-        clearTimeout(characterTransitionTimerRef.current);
-      }
-      characterTransitionTimerRef.current = setTimeout(() => {
-        setPreviousCharacterIndex(null);
-        characterTransitionTimerRef.current = null;
-      }, CHARACTER_TRANSITION_MS);
+      setCharacterTransitionDirection(step >= 0 ? 1 : -1);
+      setCharacterTransitionProgress(0);
       return next;
     });
   }, []);
@@ -1025,6 +1013,16 @@ export default function FlappyGameScene({
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 1 / 30);
+    if (characterTransitionProgress < 1) {
+      const nextProgress = Math.min(1, characterTransitionProgress + (dt * 1000) / CHARACTER_TRANSITION_MS);
+      if (nextProgress >= 1) {
+        if (previousCharacterIndex !== null) {
+          setPreviousCharacterIndex(null);
+        }
+        setCharacterTransitionDirection(0);
+      }
+      setCharacterTransitionProgress(nextProgress);
+    }
     const isReverse = flightModeRef.current === 'reverse';
     const direction = isReverse ? -1 : 1;
     const targetBirdX = isReverse ? -BIRD_X : BIRD_X;
@@ -1176,11 +1174,17 @@ export default function FlappyGameScene({
     () => effects.map((item) => <EffectMarker key={item.id} x={item.x} y={item.y} effect={item.effect} />),
     [effects]
   );
+  const sceneSlideDistance = isMobile ? 3.2 : 4.8;
+  const isCharacterTransitioning = previousCharacter !== null && characterTransitionProgress < 1;
+  const outgoingSlideX = isCharacterTransitioning ? -characterTransitionDirection * characterTransitionProgress * sceneSlideDistance : 0;
+  const incomingSlideX = isCharacterTransitioning ? characterTransitionDirection * (1 - characterTransitionProgress) * sceneSlideDistance : 0;
 
   return (
     <group>
-      {previousCharacter && <FlappyBackgroundShader variant={previousCharacter.id} targetOpacity={0} />}
-      <FlappyBackgroundShader variant={activeCharacter.id} targetOpacity={1} />
+      {previousCharacter && (
+        <FlappyBackgroundShader variant={previousCharacter.id} targetOpacity={0} slideX={outgoingSlideX} />
+      )}
+      <FlappyBackgroundShader variant={activeCharacter.id} targetOpacity={1} slideX={incomingSlideX} />
       <ambientLight intensity={1.1} />
       <directionalLight position={[5, 6, 4]} intensity={1.4} />
       <World />
@@ -1211,7 +1215,7 @@ export default function FlappyGameScene({
       {previousCharacter && (
         <Suspense fallback={null}>
           <Bird
-            x={birdX}
+            x={birdX + outgoingSlideX}
             y={birdY}
             z={birdZ}
             phase={phase}
@@ -1226,7 +1230,7 @@ export default function FlappyGameScene({
       )}
       <Suspense fallback={<CharacterModelFallback x={birdX} y={birdY} z={birdZ} />}>
         <Bird
-          x={birdX}
+          x={birdX + incomingSlideX}
           y={birdY}
           z={birdZ}
           phase={phase}
